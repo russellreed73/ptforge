@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ptforge
+          POSTGRES_PASSWORD: ptforge
+          POSTGRES_DB: ptforge
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ptforge"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://ptforge:ptforge@localhost:5432/ptforge
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      BETTER_AUTH_URL: http://localhost:3000
+      DISABLE_PWNED_CHECK: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+      - name: Formatting
+        run: pnpm format:check
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Migrate and seed test database
+        run: pnpm db:migrate && pnpm db:seed
+      - name: Tests (including tenant isolation)
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

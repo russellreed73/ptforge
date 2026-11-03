@@ -1,0 +1,30 @@
+# Local services for development: `pnpm db:up` / `pnpm db:down`
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ptforge
+      POSTGRES_PASSWORD: ptforge
+      POSTGRES_DB: ptforge
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ptforge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Catches every email the app sends. Open http://localhost:8025
+  # (wired up in phase 1 when invitations start sending real email)
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  pgdata:
