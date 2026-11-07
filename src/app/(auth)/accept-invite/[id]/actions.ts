@@ -1,9 +1,13 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { APIError } from "better-auth/api";
 import { z } from "zod";
 import { auth } from "@/server/auth";
 import { isPasswordPwned } from "@/server/auth/pwned";
+import { readBusinessMetadata } from "@/lib/themes";
+import { db } from "@/server/db";
+import { user } from "@/server/db/schema";
 import { getInvitationForAcceptPage } from "@/server/team/queries";
 
 const input = z.object({
@@ -43,7 +47,7 @@ export async function createInvitedAccount(
   }
 
   try {
-    await auth.api.createUser({
+    const created = await auth.api.createUser({
       body: {
         email: inv.email,
         password,
@@ -52,6 +56,11 @@ export async function createInvitedAccount(
         data: { emailVerified: true },
       },
     });
+    // Start with the business's default weight unit; they can switch any time.
+    await db
+      .update(user)
+      .set({ preferredUnit: readBusinessMetadata(inv.businessMetadata).defaultUnit })
+      .where(eq(user.id, created.user.id));
   } catch (err) {
     if (err instanceof APIError) return { ok: false, error: err.body?.message ?? err.message };
     throw err;

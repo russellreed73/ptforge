@@ -99,6 +99,7 @@ export async function getInvitationForAcceptPage(id: string) {
       expiresAt: invitation.expiresAt,
       businessName: organization.name,
       businessSlug: organization.slug,
+      businessMetadata: organization.metadata,
       inviterName: user.name,
     })
     .from(invitation)
