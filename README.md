@@ -5,8 +5,9 @@ with a phone app (PWA) for their athletes. Multi-tenant: every coaching business
 its own private space at `ptforge.app/<business>`.
 
 **Status: phase 1 in progress.** Done: phase 0 foundation (sign-up, sign-in, businesses,
-the five roles, database-level tenant isolation) and phase 1 step 1 (confirmation,
-password-reset and invitation emails; new accounts must confirm their email).
+the five roles, database-level tenant isolation), step 1 (confirmation, password-reset and
+invitation emails) and step 2 (team page, invitations, accepting invitations, role changes,
+audit log).
 
 Full plan: the "PTForge — Implementation Plan" doc in the Claude project.
 
@@ -245,7 +246,7 @@ Preview deployments without the key print emails to the Vercel function logs.
 
 ## 7. Left for phase 1
 
-- Accept-invitation page (`/accept-invite/[id]`) and the invite form.
-- Shorter (7-day) sessions for coach roles; athletes keep 90 days.
-- Two-factor setup screen (the plugin is installed; the UI isn't built yet).
-- Client profiles and the exercise library.
+- Forgot/reset password pages (the emailed reset link has nowhere to land yet), two-factor
+  setup, 7-day sessions for coaches (step 3).
+- App shell with full navigation and the kg/lb switch (step 4).
+- Client profiles, the website enquiry form, the exercise library and imports (steps 5 to 7).
