@@ -8,8 +8,14 @@ import {
   organization,
   twoFactor,
 } from "better-auth/plugins";
+import { createElement } from "react";
+import Invitation from "../../emails/invitation";
+import ResetPassword from "../../emails/reset-password";
+import VerifyEmail from "../../emails/verify-email";
 import { db } from "../db";
 import * as schema from "../db/schema";
+import { sendEmail } from "../email/send";
+import { appBaseUrl, trustedOrigins } from "./origins";
 import {
   adminAc as platformOwnerAc,
   userAc as platformUserAc,
@@ -24,7 +30,8 @@ const checkBreachedPasswords = process.env.DISABLE_PWNED_CHECK !== "true";
 
 export const auth = betterAuth({
   appName: "PTForge",
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: appBaseUrl(),
+  trustedOrigins: trustedOrigins(),
   secret: process.env.BETTER_AUTH_SECRET,
 
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -38,10 +45,30 @@ export const auth = betterAuth({
     // Decided Nov 2, 2026: 16 characters minimum, long passphrases welcome.
     minPasswordLength: 16,
     maxPasswordLength: 128,
-    // TODO(phase 1): send through Resend. Until then the link is printed in
-    // the terminal running `pnpm dev`.
+    // New accounts must confirm their email before they can sign in.
+    requireEmailVerification: true,
+    resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
     sendResetPassword: async ({ user, url }) => {
-      console.info(`[auth] Password reset for ${user.email}: ${url}`);
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your PTForge password",
+        react: createElement(ResetPassword, { name: user.name, url }),
+      });
+    },
+  },
+
+  emailVerification: {
+    sendOnSignUp: true,
+    // Signing in with an unconfirmed email sends a fresh link.
+    sendOnSignIn: true,
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60, // 1 hour
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail({
+        to: user.email,
+        subject: "Confirm your email for PTForge",
+        react: createElement(VerifyEmail, { name: user.name, url }),
+      });
     },
   },
 
@@ -67,12 +94,18 @@ export const auth = betterAuth({
       creatorRole: "admin", // whoever creates a business is its administrator
       allowUserToCreateOrganization: true,
       invitationExpiresIn: 7 * DAY,
-      // TODO(phase 1): send through Resend.
       sendInvitationEmail: async ({ email, invitation, organization, inviter }) => {
-        const url = `${process.env.BETTER_AUTH_URL}/accept-invite/${invitation.id}`;
-        console.info(
-          `[auth] ${inviter.user.email} invited ${email} to ${organization.name} as ${invitation.role}: ${url}`,
-        );
+        await sendEmail({
+          to: email,
+          subject: `${inviter.user.name} invited you to ${organization.name} on PTForge`,
+          react: createElement(Invitation, {
+            inviterName: inviter.user.name,
+            businessName: organization.name,
+            roleLabel: parseRoles(invitation.role).join(" and "),
+            // The accept page is built in phase 1 step 2.
+            url: `${appBaseUrl()}/accept-invite/${invitation.id}`,
+          }),
+        });
       },
       organizationHooks: {
         // A manager may invite trainers and athletes; a trainer only athletes.

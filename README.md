@@ -4,8 +4,9 @@ Client, program and progress management for personal trainers and strength coach
 with a phone app (PWA) for their athletes. Multi-tenant: every coaching business gets
 its own private space at `ptforge.app/<business>`.
 
-**Status: phase 0 (foundation).** Sign-up, sign-in, businesses, the five roles, and
-database-level tenant isolation are working and tested. Client management starts in phase 1.
+**Status: phase 1 in progress.** Done: phase 0 foundation (sign-up, sign-in, businesses,
+the five roles, database-level tenant isolation) and phase 1 step 1 (confirmation,
+password-reset and invitation emails; new accounts must confirm their email).
 
 Full plan: the "PTForge — Implementation Plan" doc in the Claude project.
 
@@ -44,7 +45,9 @@ pnpm db:seed
 pnpm dev
 ```
 
-Open http://localhost:3000 and sign in with a demo account. Every demo password is
+Open http://localhost:3000 and sign in with a demo account. Every email the app sends
+locally (confirmations, password resets, invitations) appears in Mailpit at
+http://localhost:8025 instead of going out. Every demo password is
 `forge-ahead-demo-2026`.
 
 | Email             | Business       | Roles             | Sees                 |
@@ -88,6 +91,7 @@ and require the **CI / check** status to pass. From now on, work on a branch
 | `pnpm db:seed`           | Load demo data (safe to repeat)                                                      |
 | `pnpm db:reset`          | Wipe the LOCAL database and rebuild it                                               |
 | `pnpm db:studio`         | Browse the database in your browser                                                  |
+| `pnpm email:preview`     | Preview the email templates at http://localhost:3001                                 |
 | `pnpm auth:generate`     | Regenerate auth tables after changing `src/server/auth/index.ts`, then `pnpm format` |
 
 **Never run `drizzle-kit push`.** It doesn't know about the security policies.
@@ -143,22 +147,95 @@ test to `tenant-isolation.test.ts`.
 
 ## 5. Deploying (Vercel + Neon)
 
-1. **Neon** (https://neon.tech): create a project in a region near your users (for
-   example AWS US East or Canada Central). Copy the connection string.
-2. Run migrations against it once from your machine:
-   `$env:DATABASE_URL="<neon connection string>"; pnpm db:migrate`
-   (Don't seed production.)
-3. **Vercel** (https://vercel.com): "Add New Project" → import the GitHub repo. Add
-   environment variables `DATABASE_URL`, `BETTER_AUTH_SECRET` (a new one, not your local
-   one) and `BETTER_AUTH_URL=https://ptforge.app`. Leave `DISABLE_PWNED_CHECK` unset.
-4. Vercel → Project → Settings → Domains: add `ptforge.app` (primary), then
-   `ptforge.fit` and `ptforge.ca` as redirects to it. Follow the DNS instructions
-   Vercel shows for your registrar.
-5. Every pull request gets its own preview URL automatically.
+Neon holds the live database; Vercel runs the live app. Your computer keeps using the
+Docker database for development, so demo data and tests never touch real data.
 
-## 6. Left for phase 1
+### Neon (live database)
 
-- Send invitation and password-reset emails through Resend (now printed in the terminal).
+Your Neon project is already created (org `org-morning-lab-69146917`, project
+`sparkling-river-24910784`, branch `production`). In PowerShell, in the project folder:
+
+```powershell
+npm i -g neon@latest        # the Neon command-line tool
+
+neon login                  # opens your browser; finish signing in there
+
+# Link this folder to the project. --no-env-pull stops Neon from writing the live
+# connection string into .env.local (which would point your local app at production).
+neon link --org-id org-morning-lab-69146917 --project-id sparkling-river-24910784 --branch production --no-env-pull
+
+# Save the live connection strings to their own file (git-ignored)
+pnpm neon:env               # = neon env pull --file .env.neon
+
+pnpm neon:migrate           # create the tables and security policies on Neon
+pnpm neon:check             # prove it: connections, tables, and tenant isolation
+```
+
+`pnpm neon:check` should end with `All Neon checks passed.` It creates a few throwaway
+rows inside a transaction and rolls them back, so it leaves nothing behind. Never run
+`pnpm db:seed` or `pnpm db:reset` against Neon (`db:reset` refuses anyway).
+
+Whenever a future pull request adds a migration, run `pnpm neon:migrate` after merging it.
+
+Optional: `neon init` and `neon deploy` aren't needed. PTForge only uses Neon's
+Postgres (sign-in is Better Auth in our own database), and the default `neon init -y`
+also installs a Neon access key into your coding tools' settings.
+
+### Vercel (live app)
+
+1. https://vercel.com → **Add New → Project** → import the `ptforge` GitHub repo.
+2. **Environment Variables** (Production):
+   - `DATABASE_URL`: the `DATABASE_URL` value from `.env.neon` (the pooled one, its host
+     contains `-pooler`)
+   - `BETTER_AUTH_SECRET`: a new one from `pnpm dlx auth@latest secret` (not your local one)
+   - `BETTER_AUTH_URL`: `https://ptforge.app`
+   - `RESEND_API_KEY` and `EMAIL_FROM`: see section 6
+   - `TRUSTED_ORIGINS` (optional): any other address people open the app at, comma
+     separated, such as `https://www.ptforge.app`. The Vercel addresses (`*.vercel.app`)
+     for each deployment are trusted automatically.
+   - Leave `DISABLE_PWNED_CHECK` and `SMTP_URL` unset.
+3. Deploy. Then **Settings → Domains**: add `ptforge.app` (primary), then `ptforge.fit`
+   and `ptforge.ca` as redirects to it, and follow the DNS instructions Vercel shows for
+   your registrar.
+4. Every pull request gets its own preview URL automatically. Previews use the same
+   database unless you give the Preview environment a different `DATABASE_URL` (for
+   example a Neon branch), so test sign-ups on previews with throwaway emails.
+
+## 6. Email (Resend)
+
+How email is sent depends on the environment (see `src/server/email/send.ts`):
+
+| Where             | Setting                    | Emails go to                        |
+| ----------------- | -------------------------- | ----------------------------------- |
+| Your computer     | `SMTP_URL` in `.env.local` | Mailpit, http://localhost:8025      |
+| Tests and CI      | nothing set                | printed in the terminal             |
+| Vercel production | `RESEND_API_KEY`           | real inboxes, from mail.ptforge.app |
+
+Production refuses to send without `RESEND_API_KEY`, so no email is ever silently lost.
+
+**One-time Resend setup.** Do this before deploying, because new accounts must confirm
+their email before they can sign in.
+
+1. Sign up at https://resend.com and go to **Domains → Add domain**. Enter
+   `mail.ptforge.app` and pick the region closest to you (for example North Virginia).
+2. Resend shows a few DNS records (MX and TXT records for SPF, and a TXT record for
+   DKIM). Add each one exactly as shown, at the registrar where you bought ptforge.app
+   or in Vercel → Domains if Vercel manages its DNS.
+3. Add a DMARC record too: type `TXT`, name `_dmarc` (on ptforge.app), value
+   `v=DMARC1; p=none; rua=mailto:you@your-email`. `p=none` only reports; tighten it to
+   `p=quarantine` after a few weeks of clean reports.
+4. Click **Verify** in Resend. DNS can take a few minutes up to a few hours.
+5. Resend → **API Keys → Create**: permission "Sending access", domain
+   `mail.ptforge.app`. Copy the key (it's shown once).
+6. Vercel → Project → Settings → Environment Variables: add `RESEND_API_KEY`
+   (Production) and `EMAIL_FROM` = `PTForge <no-reply@mail.ptforge.app>`. Redeploy.
+7. Test: sign up on ptforge.app with a real address and check the confirmation arrives
+   and isn't in spam.
+
+Preview deployments without the key print emails to the Vercel function logs.
+
+## 7. Left for phase 1
+
 - Accept-invitation page (`/accept-invite/[id]`) and the invite form.
 - Shorter (7-day) sessions for coach roles; athletes keep 90 days.
 - Two-factor setup screen (the plugin is installed; the UI isn't built yet).

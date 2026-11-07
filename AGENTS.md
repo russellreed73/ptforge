@@ -16,5 +16,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Roles: admin, manager, trainer, athlete (a member may hold several, comma separated). Platform owner is `user.role = "platform_owner"`.
 - New tenant table: `tenantId()` column, a custom migration enabling RLS with policies and `GRANT ... TO ptforge_app`, and a test in `tests/tenant-isolation.test.ts`.
 - Never use `drizzle-kit push`; use `pnpm db:generate` then `pnpm db:migrate`.
+- Send email only through `sendEmail()` in `src/server/email/send.ts` with a React Email template from `src/emails/`.
 - Weights are stored in kg (display unit is a user preference). Passwords: 16+ characters.
 - Before finishing: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
