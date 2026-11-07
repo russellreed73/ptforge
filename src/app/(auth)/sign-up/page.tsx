@@ -48,9 +48,12 @@ export default function SignUpPage() {
           We sent a confirmation link to <strong>{sentTo}</strong>. Open it on this device to finish
           setting up {business || "your business"}.
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-muted text-sm">
           The link expires in 1 hour. Nothing there? Check your spam folder, or{" "}
-          <Link href="/sign-in" className="underline">
+          <Link
+            href="/sign-in"
+            className="text-foreground decoration-primary underline underline-offset-4"
+          >
             sign in
           </Link>{" "}
           to get a new link.
@@ -86,9 +89,12 @@ export default function SignUpPage() {
         <Button type="submit" disabled={pending}>
           {pending ? "Creating…" : "Create account"}
         </Button>
-        <p className="text-sm text-slate-500">
+        <p className="text-muted text-sm">
           Already have an account?{" "}
-          <Link href="/sign-in" className="underline">
+          <Link
+            href="/sign-in"
+            className="text-foreground decoration-primary underline underline-offset-4"
+          >
             Sign in
           </Link>
         </p>

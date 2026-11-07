@@ -8,6 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@fontsource/barlow':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/barlow-condensed':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/bebas-neue':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@react-email/render':
         specifier: ^2.2.0
         version: 2.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -759,6 +768,15 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource/barlow-condensed@5.3.0':
+    resolution: {integrity: sha512-RA7MmIx0v3eQ6Gcf74qLVLOwLB0GpPOzx+eU9iG/AmCnSJGcIWYeU8y6CEMGZ210MGwGg5CZhzLkkvyZdTTk1g==}
+
+  '@fontsource/barlow@5.3.0':
+    resolution: {integrity: sha512-tGR0y6QObRtKv71MOth44222+mdNFM/ZWFWDV1VLzNbG4oK9PNRlyJzmkck4vHAi9ibHBXgt4SlY51amFP55CA==}
+
+  '@fontsource/bebas-neue@5.3.0':
+    resolution: {integrity: sha512-nCxMEb9Bg9sjNWm9TIOsvHKDMLRUfEZPWpLgYu6m9KavZZVSA/WoHzI5wROwqA+eNwEi/PNBAcB5Co7HA3S0Cw==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -4097,6 +4115,12 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource/barlow-condensed@5.3.0': {}
+
+  '@fontsource/barlow@5.3.0': {}
+
+  '@fontsource/bebas-neue@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

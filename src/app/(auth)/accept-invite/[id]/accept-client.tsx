@@ -41,7 +41,7 @@ export function AcceptInvite({
   if (signedInEmail && signedInEmail.toLowerCase() !== email.toLowerCase()) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-subtle text-sm">
           You&apos;re signed in as {signedInEmail}, but this invitation is for {email}.
         </p>
         <Button
@@ -72,7 +72,7 @@ export function AcceptInvite({
           {pending ? "Joining…" : "Accept invitation"}
         </Button>
         <button
-          className="text-sm text-slate-500 underline"
+          className="text-muted decoration-primary text-sm underline underline-offset-4"
           disabled={pending}
           onClick={async () => {
             await authClient.organization.rejectInvitation({ invitationId });
@@ -90,12 +90,12 @@ export function AcceptInvite({
   if (hasAccount) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-subtle text-sm">
           You already have a PTForge account. Sign in to accept.
         </p>
         <Link
           href={`/sign-in?next=${encodeURIComponent(here)}`}
-          className="rounded-md bg-slate-900 px-4 py-2 text-center font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+          className="btn-shape bg-primary font-heading text-primary-foreground hover:bg-primary-hover px-6 py-2.5 text-center text-sm font-semibold tracking-[0.15em] uppercase"
         >
           Sign in
         </Link>
@@ -145,7 +145,7 @@ export function AcceptInvite({
       <Button type="submit" disabled={pending}>
         {pending ? "Joining…" : "Create account and join"}
       </Button>
-      <p className="text-xs text-slate-500">Not expecting this? You can ignore the invitation.</p>
+      <p className="text-muted text-xs">Not expecting this? You can ignore the invitation.</p>
     </form>
   );
 }

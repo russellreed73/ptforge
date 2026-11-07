@@ -7,7 +7,7 @@ export function SignOutButton() {
   const router = useRouter();
   return (
     <button
-      className="text-sm underline"
+      className="font-heading text-subtle hover:text-primary text-xs font-semibold tracking-[0.15em] uppercase"
       onClick={async () => {
         await signOut();
         router.push("/sign-in");

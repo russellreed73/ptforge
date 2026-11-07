@@ -120,6 +120,15 @@ scripts/                        seed and reset
 tests/                          Vitest tests
 ```
 
+### Themes
+
+All colours and fonts come from theme variables in `src/app/globals.css`
+(`[data-theme="next-level"]` is Jacob's brand: near-black, red `#E8171A`, teal `#14B8A6`,
+Bebas Neue, Barlow Condensed and Barlow). Components use theme names such as `bg-surface`,
+`text-muted` and `bg-primary`, never raw colours like `slate-500`. To add a theme, copy a
+`[data-theme]` block and register it in `src/lib/themes.ts`. Each business will choose its
+theme in Settings (phase 1 step 4); until then everyone gets `next-level`.
+
 ### Roles
 
 A person can hold several roles in a business (stored as `"manager,trainer"`).

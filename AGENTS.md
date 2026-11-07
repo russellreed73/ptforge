@@ -17,5 +17,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - New tenant table: `tenantId()` column, a custom migration enabling RLS with policies and `GRANT ... TO ptforge_app`, and a test in `tests/tenant-isolation.test.ts`.
 - Never use `drizzle-kit push`; use `pnpm db:generate` then `pnpm db:migrate`.
 - Send email only through `sendEmail()` in `src/server/email/send.ts` with a React Email template from `src/emails/`.
+- Style with theme colours only (`bg-surface`, `text-muted`, `bg-primary`, `border-border`...) and the shared components in `src/components/ui.tsx`; never raw Tailwind colours like `slate-500`. Themes live in `src/app/globals.css` + `src/lib/themes.ts`.
 - Weights are stored in kg (display unit is a user preference). Passwords: 16+ characters.
 - Before finishing: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.

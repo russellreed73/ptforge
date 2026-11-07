@@ -27,7 +27,10 @@ export default async function AcceptInvitePage({ params }: PageProps<"/accept-in
       <AuthCard title="Already accepted">
         <p>
           This invitation has already been used.{" "}
-          <Link href="/sign-in" className="underline">
+          <Link
+            href="/sign-in"
+            className="text-foreground decoration-primary underline underline-offset-4"
+          >
             Sign in
           </Link>{" "}
           to open {inv.businessName}.

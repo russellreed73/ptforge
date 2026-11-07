@@ -49,9 +49,12 @@ function SignInForm() {
       <Button type="submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
-      <p className="text-sm text-slate-500">
+      <p className="text-muted text-sm">
         New coach?{" "}
-        <Link href="/sign-up" className="underline">
+        <Link
+          href="/sign-up"
+          className="text-foreground decoration-primary underline underline-offset-4"
+        >
           Create your business
         </Link>
       </p>

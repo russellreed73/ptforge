@@ -24,8 +24,11 @@ function WelcomeForm() {
     return (
       <div className="flex flex-col gap-3">
         <p>That confirmation link has expired or was already used.</p>
-        <p className="text-sm text-slate-500">
-          <Link href="/sign-in" className="underline">
+        <p className="text-muted text-sm">
+          <Link
+            href="/sign-in"
+            className="text-foreground decoration-primary underline underline-offset-4"
+          >
             Sign in
           </Link>{" "}
           with your email and password and we&apos;ll send you a fresh link.
@@ -70,7 +73,7 @@ function WelcomeForm() {
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create business"}
       </Button>
-      <p className="text-sm text-slate-500">
+      <p className="text-muted text-sm">
         Joining someone else&apos;s business instead? Use the invitation link they emailed you.
       </p>
     </form>

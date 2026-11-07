@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, ErrorText, Field } from "@/components/ui";
+import { Button, ErrorText, Field, SuccessText, TextButton } from "@/components/ui";
 import { ROLE_LABELS, validateRoleSet, type RoleKey } from "@/lib/roles";
 import {
   cancelInvitationAction,
@@ -22,12 +22,15 @@ function RolePicker({
   onChange: (roles: RoleKey[]) => void;
 }) {
   return (
-    <fieldset className="flex flex-wrap gap-4 text-sm">
-      <legend className="mb-1 font-medium">Role</legend>
+    <fieldset className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <legend className="font-heading text-subtle mb-2 text-xs font-semibold tracking-[0.15em] uppercase">
+        Role
+      </legend>
       {allowed.map((role) => (
-        <label key={role} className="flex items-center gap-2">
+        <label key={role} className="flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
+            className="size-4 accent-[var(--primary)]"
             checked={value.includes(role)}
             onChange={(e) =>
               onChange(e.target.checked ? [...value, role] : value.filter((r) => r !== role))
@@ -61,10 +64,7 @@ export function InviteForm({ slug, allowedRoles }: { slug: string; allowedRoles:
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="flex flex-col gap-4 rounded-md border border-slate-200 p-4 dark:border-slate-800"
-    >
+    <form onSubmit={submit} className="border-border bg-surface flex flex-col gap-4 border p-5">
       <Field
         label="Email"
         type="email"
@@ -76,31 +76,18 @@ export function InviteForm({ slug, allowedRoles }: { slug: string; allowedRoles:
       {allowedRoles.length > 1 ? (
         <RolePicker allowed={allowedRoles} value={roles} onChange={setRoles} />
       ) : (
-        <p className="text-sm text-slate-500">
+        <p className="text-muted text-sm">
           They&apos;ll join as {ROLE_LABELS[allowedRoles[0]].toLowerCase()}.
         </p>
       )}
       {result?.ok === false && <ErrorText>{result.error}</ErrorText>}
-      {result?.ok && result.message && (
-        <p role="status" className="text-sm text-green-700 dark:text-green-400">
-          {result.message}
-        </p>
-      )}
+      {result?.ok && <SuccessText>{result.message ?? null}</SuccessText>}
       <div>
         <Button type="submit" disabled={pending}>
           {pending ? "Sending…" : "Send invitation"}
         </Button>
       </div>
     </form>
-  );
-}
-
-function SmallButton(props: React.ComponentProps<"button">) {
-  return (
-    <button
-      className="rounded px-2 py-1 text-sm underline-offset-2 hover:underline disabled:opacity-50"
-      {...props}
-    />
   );
 }
 
@@ -122,20 +109,20 @@ export function InvitationActions({
     });
   return (
     <span className="inline-flex items-center gap-1">
-      {note && <span className="text-xs text-slate-500">{note}</span>}
-      <SmallButton
+      {note && <span className="text-muted text-xs">{note}</span>}
+      <TextButton
         disabled={pending}
         onClick={() => run(() => resendInvitationAction(slug, invitationId))}
       >
         Resend
-      </SmallButton>
+      </TextButton>
       {canCancel && (
-        <SmallButton
+        <TextButton
           disabled={pending}
           onClick={() => run(() => cancelInvitationAction(slug, invitationId))}
         >
           Cancel
-        </SmallButton>
+        </TextButton>
       )}
     </span>
   );
@@ -187,10 +174,10 @@ export function MemberActions({
         />
         {error && <ErrorText>{error}</ErrorText>}
         <span>
-          <SmallButton disabled={pending} onClick={save}>
+          <TextButton disabled={pending} onClick={save}>
             Save
-          </SmallButton>
-          <SmallButton
+          </TextButton>
+          <TextButton
             disabled={pending}
             onClick={() => {
               setDraft(roles);
@@ -199,7 +186,7 @@ export function MemberActions({
             }}
           >
             Cancel
-          </SmallButton>
+          </TextButton>
         </span>
       </div>
     );
@@ -207,12 +194,12 @@ export function MemberActions({
   return (
     <span className="inline-flex flex-col items-end">
       <span>
-        <SmallButton disabled={pending} onClick={() => setEditing(true)}>
+        <TextButton disabled={pending} onClick={() => setEditing(true)}>
           Change role
-        </SmallButton>
-        <SmallButton disabled={pending} onClick={remove}>
+        </TextButton>
+        <TextButton disabled={pending} onClick={remove}>
           Remove
-        </SmallButton>
+        </TextButton>
       </span>
       {error && <ErrorText>{error}</ErrorText>}
     </span>

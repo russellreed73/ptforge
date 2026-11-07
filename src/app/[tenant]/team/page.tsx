@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PageHeader, SectionTitle, Table, Td, Th } from "@/components/ui";
 import { describeRoles } from "@/lib/roles";
 import { can, invitableRoles } from "@/server/auth/permissions";
 import { requireTenant } from "@/server/auth/session";
@@ -20,84 +21,84 @@ export default async function TeamPage({ params }: PageProps<"/[tenant]/team">) 
   const canCancel = can(ctx.roles, { invitation: ["cancel"] });
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
-      <h1 className="text-2xl font-bold">Team</h1>
-      <p className="mt-1 text-slate-500">
-        {isAdmin
-          ? "Invite people, change their roles, or remove them."
-          : "Invite people to join this business."}
-      </p>
+    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
+      <PageHeader
+        eyebrow={ctx.tenantName}
+        title="Team"
+        description={
+          isAdmin
+            ? "Invite people, change their roles, or remove them."
+            : "Invite people to join this business."
+        }
+      />
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-lg font-semibold">Invite someone</h2>
+      <section>
+        <SectionTitle>Invite someone</SectionTitle>
         <InviteForm slug={ctx.tenantSlug} allowedRoles={invitableRoles(ctx.roles)} />
       </section>
 
-      <section className="mt-10">
-        <h2 className="mb-3 text-lg font-semibold">
-          Pending invitations{" "}
-          <span className="font-normal text-slate-500">({invitations.length})</span>
-        </h2>
+      <section className="mt-12">
+        <SectionTitle count={invitations.length}>Pending invitations</SectionTitle>
         {invitations.length === 0 ? (
-          <p className="text-sm text-slate-500">No pending invitations.</p>
+          <p className="text-muted text-sm">No pending invitations.</p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-800">
+          <Table>
+            <thead>
               <tr>
-                <th className="py-2">Email</th>
-                <th className="py-2">Role</th>
-                <th className="py-2">Invited by</th>
-                <th className="py-2">Expires</th>
-                <th className="py-2" />
+                <Th>Email</Th>
+                <Th>Role</Th>
+                <Th>Invited by</Th>
+                <Th>Expires</Th>
+                <Th />
               </tr>
             </thead>
             <tbody>
               {invitations.map((inv) => (
-                <tr key={inv.id} className="border-b border-slate-100 dark:border-slate-900">
-                  <td className="py-2 font-medium">{inv.email}</td>
-                  <td className="py-2">{describeRoles(inv.roles)}</td>
-                  <td className="py-2">{inv.sentByMe ? "You" : (inv.inviterName ?? "—")}</td>
-                  <td className="py-2">{date.format(inv.expiresAt)}</td>
-                  <td className="py-2 text-right">
+                <tr key={inv.id}>
+                  <Td className="font-semibold">{inv.email}</Td>
+                  <Td className="text-subtle">{describeRoles(inv.roles)}</Td>
+                  <Td className="text-subtle">{inv.sentByMe ? "You" : (inv.inviterName ?? "—")}</Td>
+                  <Td className="text-subtle">{date.format(inv.expiresAt)}</Td>
+                  <Td className="text-right">
                     <InvitationActions
                       slug={ctx.tenantSlug}
                       invitationId={inv.id}
                       canCancel={canCancel}
                     />
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         )}
       </section>
 
-      <section className="mt-10">
-        <h2 className="mb-3 text-lg font-semibold">
-          Members <span className="font-normal text-slate-500">({members.length})</span>
-        </h2>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-800">
+      <section className="mt-12">
+        <SectionTitle count={members.length}>Members</SectionTitle>
+        <Table>
+          <thead>
             <tr>
-              <th className="py-2">Name</th>
-              <th className="py-2">Email</th>
-              <th className="py-2">Role</th>
-              <th className="py-2">Joined</th>
-              {isAdmin && <th className="py-2" />}
+              <Th>Name</Th>
+              <Th>Email</Th>
+              <Th>Role</Th>
+              <Th>Joined</Th>
+              {isAdmin && <Th />}
             </tr>
           </thead>
           <tbody>
             {members.map((m) => (
-              <tr key={m.memberId} className="border-b border-slate-100 dark:border-slate-900">
-                <td className="py-2 font-medium">
+              <tr key={m.memberId}>
+                <Td className="font-semibold">
                   {m.name}
-                  {m.userId === ctx.userId && <span className="text-slate-500"> (you)</span>}
-                </td>
-                <td className="py-2">{m.email}</td>
-                <td className="py-2">{describeRoles(m.roles)}</td>
-                <td className="py-2">{date.format(m.joinedAt)}</td>
+                  {m.userId === ctx.userId && (
+                    <span className="text-muted font-normal"> (you)</span>
+                  )}
+                </Td>
+                <Td className="text-subtle">{m.email}</Td>
+                <Td className="text-subtle">{describeRoles(m.roles)}</Td>
+                <Td className="text-subtle">{date.format(m.joinedAt)}</Td>
                 {isAdmin && (
-                  <td className="py-2 text-right">
+                  <Td className="text-right">
                     {m.userId !== ctx.userId && (
                       <MemberActions
                         slug={ctx.tenantSlug}
@@ -106,16 +107,14 @@ export default async function TeamPage({ params }: PageProps<"/[tenant]/team">) 
                         roles={m.roles}
                       />
                     )}
-                  </td>
+                  </Td>
                 )}
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
         {!can(ctx.roles, { athlete: ["view_all"] }) && (
-          <p className="mt-3 text-xs text-slate-500">
-            Athletes are listed under Clients, not here.
-          </p>
+          <p className="text-muted mt-3 text-xs">Athletes are listed under Clients, not here.</p>
         )}
       </section>
     </main>
