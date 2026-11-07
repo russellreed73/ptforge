@@ -23,6 +23,12 @@ function SignInForm() {
       rememberMe: true,
     });
     setPending(false);
+    if (error?.code === "EMAIL_NOT_VERIFIED") {
+      // Better Auth has just emailed a fresh confirmation link (sendOnSignIn).
+      return setError(
+        "Please confirm your email first. We've sent a new confirmation link; it expires in 1 hour.",
+      );
+    }
     if (error) return setError(error.message ?? "Sign-in failed.");
     // Only allow same-site paths after sign-in.
     router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/");

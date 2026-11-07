@@ -40,7 +40,7 @@ export default async function Home() {
       {tenants.length === 0 ? (
         <p className="text-slate-500">
           You aren&apos;t part of a coaching business yet. Ask your coach for an invitation, or{" "}
-          <Link href="/sign-up" className="underline">
+          <Link href="/welcome" className="underline">
             create your own
           </Link>
           .

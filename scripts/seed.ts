@@ -30,7 +30,11 @@ const PASSWORD = "forge-ahead-demo-2026";
 async function ensureUser(name: string, email: string) {
   const existing = await db.query.user.findFirst({ where: eq(user.email, email) });
   if (existing) return existing.id;
-  const res = await auth.api.signUpEmail({ body: { name, email, password: PASSWORD } });
+  // Server-side create: no confirmation email, and marked as confirmed so the
+  // demo accounts can sign in straight away.
+  const res = await auth.api.createUser({
+    body: { name, email, password: PASSWORD, role: "user", data: { emailVerified: true } },
+  });
   return res.user.id;
 }
 
