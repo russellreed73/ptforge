@@ -184,22 +184,31 @@ also installs a Neon access key into your coding tools' settings.
 ### Vercel (live app)
 
 1. https://vercel.com → **Add New → Project** → import the `ptforge` GitHub repo.
-2. **Environment Variables** (Production):
+2. **Environment Variables** (Production; see step 4 for Preview):
    - `DATABASE_URL`: the `DATABASE_URL` value from `.env.neon` (the pooled one, its host
      contains `-pooler`)
    - `BETTER_AUTH_SECRET`: a new one from `pnpm dlx auth@latest secret` (not your local one)
    - `BETTER_AUTH_URL`: `https://ptforge.app`
    - `RESEND_API_KEY` and `EMAIL_FROM`: see section 6
-   - `TRUSTED_ORIGINS` (optional): any other address people open the app at, comma
-     separated, such as `https://www.ptforge.app`. The Vercel addresses (`*.vercel.app`)
-     for each deployment are trusted automatically.
+   - `TRUSTED_ORIGINS`: any other address people open the app at, comma separated. Once
+     ptforge.app is connected, add `https://ptforge.vercel.app` here so the project's
+     Vercel address keeps working. Each deployment's unique and branch preview addresses
+     are trusted automatically.
    - Leave `DISABLE_PWNED_CHECK` and `SMTP_URL` unset.
 3. Deploy. Then **Settings → Domains**: add `ptforge.app` (primary), then `ptforge.fit`
    and `ptforge.ca` as redirects to it, and follow the DNS instructions Vercel shows for
    your registrar.
-4. Every pull request gets its own preview URL automatically. Previews use the same
-   database unless you give the Preview environment a different `DATABASE_URL` (for
-   example a Neon branch), so test sign-ups on previews with throwaway emails.
+4. Every pull request gets its own preview deployment. Give the **Preview** environment
+   its own settings so previews never touch real data:
+   - Create a Neon branch for previews (a copy of the database you can throw away):
+     `neon branches create --name preview --parent production`, then
+     `neon env pull --branch preview --file .env.neon-preview`, and run migrations on it
+     with `pnpm neon:migrate --env-file .env.neon-preview` and check it with
+     `pnpm neon:check --env-file .env.neon-preview`.
+   - In Vercel, set for **Preview** only: `DATABASE_URL` (from `.env.neon-preview`), a
+     separate `BETTER_AUTH_SECRET`, and `DISABLE_PWNED_CHECK` unset. Leave
+     `BETTER_AUTH_URL` unset for Preview: each preview uses its own address.
+   - Without Preview settings, previews still build but show an error when opened.
 
 ## 6. Email (Resend)
 

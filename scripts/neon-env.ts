@@ -10,7 +10,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { parse } from "dotenv";
 import { normalizeDatabaseUrl } from "../src/server/db/url";
 
-export function loadNeonEnv(file = ".env.neon") {
+/** `--env-file <path>` on the command line picks another file, e.g. .env.neon-preview */
+function fileFromArgs(): string | undefined {
+  const i = process.argv.indexOf("--env-file");
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
+
+export function loadNeonEnv(file = fileFromArgs() ?? ".env.neon") {
   if (!existsSync(file)) {
     throw new Error(
       `${file} not found. Run: neon env pull --file ${file}   (see README section 5)`,

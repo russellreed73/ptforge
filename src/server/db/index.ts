@@ -7,9 +7,14 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 import { normalizeDatabaseUrl } from "./url";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.");
+const connectionString = process.env.DATABASE_URL ?? "";
+// `next build` loads this file without talking to the database, so a missing
+// DATABASE_URL only matters when the app actually runs.
+const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+if (!connectionString && !isBuild) {
+  throw new Error(
+    "DATABASE_URL is not set. Locally: copy .env.example to .env.local. On Vercel: add it under Settings > Environment Variables for this environment (Production and Preview).",
+  );
 }
 
 // Reuse one pool across hot reloads in development.
