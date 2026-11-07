@@ -49,6 +49,8 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     // New accounts must confirm their email before they can sign in.
     requireEmailVerification: true,
+    // A reset signs the person out on every other device.
+    revokeSessionsOnPasswordReset: true,
     resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
     sendResetPassword: async ({ user, url }) => {
       await sendEmail({

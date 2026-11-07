@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { AuthCard, Button, ErrorText, Field } from "@/components/ui";
 import { signIn } from "@/lib/auth-client";
+import { safeNext } from "@/lib/safe-next";
 
 function SignInForm() {
   const router = useRouter();
@@ -17,7 +18,7 @@ function SignInForm() {
     setError(null);
     setPending(true);
     const form = new FormData(e.currentTarget);
-    const { error } = await signIn.email({
+    const { data, error } = await signIn.email({
       email: String(form.get("email")),
       password: String(form.get("password")),
       rememberMe: true,
@@ -30,8 +31,12 @@ function SignInForm() {
       );
     }
     if (error) return setError(error.message ?? "Sign-in failed.");
-    // Only allow same-site paths after sign-in.
-    router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
+    // Two-step login is on: ask for the code from their authenticator app.
+    if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) {
+      router.push(`/two-factor?next=${encodeURIComponent(safeNext(next))}`);
+      return;
+    }
+    router.push(safeNext(next));
     router.refresh();
   }
 
@@ -45,6 +50,11 @@ function SignInForm() {
         autoComplete="current-password"
         required
       />
+      <p className="-mt-2 text-right text-sm">
+        <Link href="/forgot-password" className="text-muted hover:text-foreground">
+          Forgot password?
+        </Link>
+      </p>
       <ErrorText>{error}</ErrorText>
       <Button type="submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}

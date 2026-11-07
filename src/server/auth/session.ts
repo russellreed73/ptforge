@@ -4,14 +4,32 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "../db";
-import { member, organization } from "../db/schema";
+import { member, organization, session as sessionTable } from "../db/schema";
 import type { TenantContext } from "../db/tenant";
 import { auth } from "./index";
 import { parseRoles } from "./permissions";
+import { staffSessionExpired } from "./session-policy";
 
-/** The signed-in session, or null. Cached for the rest of this request. */
+/** All roles a user holds, across every business they belong to. */
+async function rolesAcrossBusinesses(userId: string) {
+  const rows = await db.select({ role: member.role }).from(member).where(eq(member.userId, userId));
+  return rows.flatMap((r) => parseRoles(r.role));
+}
+
+/**
+ * The signed-in session, or null. Cached for the rest of this request.
+ * Coaches' sign-ins end 7 days after they signed in (see session-policy.ts).
+ */
 export const getSession = cache(async () => {
-  return auth.api.getSession({ headers: await headers() });
+  const current = await auth.api.getSession({ headers: await headers() });
+  if (!current) return null;
+  if (
+    staffSessionExpired(current.session.createdAt, await rolesAcrossBusinesses(current.user.id))
+  ) {
+    await db.delete(sessionTable).where(eq(sessionTable.id, current.session.id));
+    return null;
+  }
+  return current;
 });
 
 /** The signed-in user, or a redirect to the sign-in page. */
