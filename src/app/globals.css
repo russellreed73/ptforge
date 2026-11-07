@@ -1,25 +1,125 @@
 @import "tailwindcss";
 
-:root {
+/*
+ * THEMES
+ * Every colour and font in the app comes from these variables. Components use
+ * the Tailwind names mapped below (bg-surface, text-muted, bg-primary, ...),
+ * never raw colours, so switching a theme restyles everything.
+ *
+ * Add a theme: copy a [data-theme] block, change the values, and register it
+ * in src/lib/themes.ts. The active theme is the data-theme attribute on
+ * <html> (app default) or on the business layout (per-business, later).
+ */
+
+/* Next Level: Jacob's brand. Near-black, red for powerlifting, teal accent. */
+[data-theme="next-level"] {
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --surface: #161616;
+  --surface-raised: #1a1a1a;
+  --border: #222222;
+  --foreground: #f5f0eb;
+  --muted: #888888;
+  --subtle: #cccccc;
+  --primary: #e8171a;
+  --primary-hover: #b01214;
+  --primary-foreground: #ffffff;
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --danger: #ff6b6b;
+  --success: #34d399;
+  --focus: rgba(232, 23, 26, 0.45);
+  --font-display: "Bebas Neue", "Barlow Condensed", Impact, sans-serif;
+  --font-heading: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --display-case: uppercase;
+  --button-shape: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+
+/* PTForge Light: a neutral, light theme for coaches who prefer it. */
+[data-theme="ptforge-light"] {
+  color-scheme: light;
   --background: #ffffff;
+  --surface: #f8fafc;
+  --surface-raised: #f1f5f9;
+  --border: #e2e8f0;
   --foreground: #0f172a;
+  --muted: #64748b;
+  --subtle: #334155;
+  --primary: #0f172a;
+  --primary-hover: #334155;
+  --primary-foreground: #ffffff;
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --danger: #dc2626;
+  --success: #15803d;
+  --focus: rgba(15, 23, 42, 0.25);
+  --font-display: ui-sans-serif, system-ui, sans-serif;
+  --font-heading: ui-sans-serif, system-ui, sans-serif;
+  --font-body: ui-sans-serif, system-ui, sans-serif;
+  --display-case: none;
+  --button-shape: none;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
   --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1120;
-    --foreground: #e2e8f0;
-  }
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-heading: var(--font-heading);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
+}
+
+/* Big page titles: Bebas Neue, uppercase in the Next Level theme. */
+.display {
+  font-family: var(--font-display);
+  text-transform: var(--display-case);
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+}
+
+/* Small labels above titles ("COACHING PACKAGES" on Jacob's site). */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.eyebrow::before {
+  content: "";
+  width: 1.5rem;
+  height: 2px;
+  background: currentColor;
+}
+
+/* Slanted buttons, like Jacob's "Apply for coaching". */
+.btn-shape {
+  clip-path: var(--button-shape);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }

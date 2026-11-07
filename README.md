@@ -4,9 +4,9 @@ Client, program and progress management for personal trainers and strength coach
 with a phone app (PWA) for their athletes. Multi-tenant: every coaching business gets
 its own private space at `ptforge.app/<business>`.
 
-**Status: phase 1 in progress.** Done: phase 0 foundation (sign-up, sign-in, businesses,
-the five roles, database-level tenant isolation) and phase 1 step 1 (confirmation,
-password-reset and invitation emails; new accounts must confirm their email).
+**Status: phase 1 in progress.** Done: phase 0 foundation, step 1 (emails), step 2 (team and
+invitations), Jacob's Next Level theme, and step 3 (forgot/reset password, two-step login,
+7-day coach sessions).
 
 Full plan: the "PTForge — Implementation Plan" doc in the Claude project.
 
@@ -118,6 +118,15 @@ drizzle/                        migrations, incl. 0001_row_level_security.sql
 scripts/                        seed and reset
 tests/                          Vitest tests
 ```
+
+### Themes
+
+All colours and fonts come from theme variables in `src/app/globals.css`
+(`[data-theme="next-level"]` is Jacob's brand: near-black, red `#E8171A`, teal `#14B8A6`,
+Bebas Neue, Barlow Condensed and Barlow). Components use theme names such as `bg-surface`,
+`text-muted` and `bg-primary`, never raw colours like `slate-500`. To add a theme, copy a
+`[data-theme]` block and register it in `src/lib/themes.ts`. Each business will choose its
+theme in Settings (phase 1 step 4); until then everyone gets `next-level`.
 
 ### Roles
 
@@ -243,9 +252,19 @@ their email before they can sign in.
 
 Preview deployments without the key print emails to the Vercel function logs.
 
-## 7. Left for phase 1
+## 7. Sign-in rules
 
-- Accept-invitation page (`/accept-invite/[id]`) and the invite form.
-- Shorter (7-day) sessions for coach roles; athletes keep 90 days.
-- Two-factor setup screen (the plugin is installed; the UI isn't built yet).
-- Client profiles and the exercise library.
+- Passwords: at least 16 characters, checked against known data breaches.
+- New accounts confirm their email; invited people are confirmed by the invitation itself.
+- Two-step login (authenticator app) is optional but every coach sees a reminder until they
+  turn it on at **Account** (`/account`). Backup codes are shown once at setup.
+- Sessions: athletes stay signed in for 90 days, renewed whenever they use the app. Anyone with
+  a staff role signs in again 7 days after their last sign-in
+  (`src/server/auth/session-policy.ts`).
+- Resetting a password signs that person out on every other device.
+
+## 8. Left for phase 1
+
+- App shell with full navigation, the kg/lb switch, and Settings with logo upload and theme
+  picker (step 4).
+- Client profiles, the website enquiry form, the exercise library and imports (steps 5 to 7).

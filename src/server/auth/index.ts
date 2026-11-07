@@ -15,6 +15,8 @@ import VerifyEmail from "../../emails/verify-email";
 import { db } from "../db";
 import * as schema from "../db/schema";
 import { sendEmail } from "../email/send";
+import { validateRoleSet } from "../../lib/roles";
+import { onInvitationAccepted } from "../team/on-accept";
 import { appBaseUrl, trustedOrigins } from "./origins";
 import {
   adminAc as platformOwnerAc,
@@ -47,6 +49,8 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     // New accounts must confirm their email before they can sign in.
     requireEmailVerification: true,
+    // A reset signs the person out on every other device.
+    revokeSessionsOnPasswordReset: true,
     resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
     sendResetPassword: async ({ user, url }) => {
       await sendEmail({
@@ -108,6 +112,22 @@ export const auth = betterAuth({
         });
       },
       organizationHooks: {
+        // Roles must be a valid combination (e.g. athletes aren't also staff).
+        beforeUpdateMemberRole: async ({ newRole }) => {
+          const problem = validateRoleSet(newRole.split(","));
+          if (problem) throw new APIError("BAD_REQUEST", { message: problem });
+        },
+        afterAcceptInvitation: async ({ invitation, user, organization }) => {
+          await onInvitationAccepted({
+            tenantId: organization.id,
+            userId: user.id,
+            userName: user.name,
+            email: user.email,
+            role: invitation.role,
+            inviterId: invitation.inviterId,
+            invitationId: invitation.id,
+          });
+        },
         // A manager may invite trainers and athletes; a trainer only athletes.
         beforeCreateInvitation: async ({ invitation, inviter, organization }) => {
           const inviterMember = await db.query.member.findFirst({
@@ -116,6 +136,8 @@ export const auth = betterAuth({
           });
           const allowed = invitableRoles(parseRoles(inviterMember?.role));
           const requested = parseRoles(invitation.role);
+          const problem = validateRoleSet(invitation.role.split(","));
+          if (problem) throw new APIError("BAD_REQUEST", { message: problem });
           if (requested.length === 0 || requested.some((r) => !allowed.includes(r))) {
             throw new APIError("FORBIDDEN", {
               message: `You can invite: ${allowed.join(", ") || "nobody"}.`,
