@@ -138,7 +138,7 @@ describe.skipIf(!hasDb)("tenant isolation (Row-Level Security)", () => {
   });
 
   describe("secrets are off-limits to the app role", () => {
-    it.each(["session", "account", "verification", "invitation", "two_factor"])(
+    it.each(["session", "account", "verification", "invitation", "two_factor", "business_assets"])(
       "cannot read %s",
       async (table) => {
         const ctx = await ctxFor("jacob@example.com", "jacob-strength");

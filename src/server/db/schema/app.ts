@@ -9,12 +9,15 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
   date,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  primaryKey,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -118,6 +121,31 @@ export const auditLogs = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("audit_logs_tenant_idx").on(t.tenantId, t.createdAt)],
+);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+/**
+ * A business's logo and the images generated from it (header logo, phone app
+ * icons). Small PNGs, so they live in Postgres rather than a separate file
+ * store. Public images, served by /brand/[tenant]/[asset]. The app's database
+ * role has no access; only Settings (owner connection, admin-checked) writes.
+ */
+export const businessAssets = pgTable(
+  "business_assets",
+  {
+    tenantId: tenantId(),
+    /** header | icon-192 | icon-512 | maskable-512 | apple-180 | source (the original upload, never served) */
+    kind: text("kind").notNull(),
+    contentType: text("content_type").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    data: bytea("data").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.kind] })],
 );
 
 export const athleteProfilesRelations = relations(athleteProfiles, ({ one, many }) => ({

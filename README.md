@@ -125,8 +125,24 @@ All colours and fonts come from theme variables in `src/app/globals.css`
 (`[data-theme="next-level"]` is Jacob's brand: near-black, red `#E8171A`, teal `#14B8A6`,
 Bebas Neue, Barlow Condensed and Barlow). Components use theme names such as `bg-surface`,
 `text-muted` and `bg-primary`, never raw colours like `slate-500`. To add a theme, copy a
-`[data-theme]` block and register it in `src/lib/themes.ts`. Each business will choose its
-theme in Settings (phase 1 step 4); until then everyone gets `next-level`.
+`[data-theme]` block and register it in `src/lib/themes.ts` (its `background` colour is
+also used behind the phone app icons). Each business picks its theme in Settings.
+
+### Branding and the phone app
+
+An administrator's **Settings** page sets the business name, theme, default weight unit for
+new clients, and logo. One logo upload (PNG, JPG, WebP or SVG, up to 4 MB) is turned into
+the header logo plus every phone icon size, stored in the `business_assets` table, and served
+publicly from `/brand/<business>/…` along with a `manifest.webmanifest`. That lets clients
+"Add to Home Screen" and get the business's own name and icon. SVGs are converted to PNG and
+never served as SVG. Changing theme rebuilds the icons on the new background colour. A white
+logo (like Jacob's) suits the dark Next Level theme and disappears on PTForge Light.
+
+### Weights
+
+Loads are always stored in kg. Each person picks kg or lb with the switch in the header (saved
+to their account); `src/lib/units.ts` converts, and `<Weight kg={…} />` shows a load in the
+viewer's unit.
 
 ### Roles
 
@@ -265,6 +281,4 @@ Preview deployments without the key print emails to the Vercel function logs.
 
 ## 8. Left for phase 1
 
-- App shell with full navigation, the kg/lb switch, and Settings with logo upload and theme
-  picker (step 4).
 - Client profiles, the website enquiry form, the exercise library and imports (steps 5 to 7).
