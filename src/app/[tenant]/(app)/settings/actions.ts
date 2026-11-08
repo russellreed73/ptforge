@@ -5,6 +5,11 @@ import { APIError } from "better-auth/api";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
+import {
+  DEFAULT_APPLY_INTRO,
+  OPTIONAL_APPLY_QUESTIONS,
+  type OptionalApplyQuestion,
+} from "@/lib/clients";
 import { readBusinessMetadata, THEMES, type BusinessMetadata } from "@/lib/themes";
 import { UNITS } from "@/lib/units";
 import { writeAudit } from "@/server/audit";
@@ -67,7 +72,11 @@ export async function saveBusinessDetails(
   try {
     existing = org.metadata ? JSON.parse(org.metadata) : {};
   } catch {}
-  const metadata: Record<string, unknown> & BusinessMetadata = { ...existing, theme, defaultUnit };
+  const metadata: Record<string, unknown> & Partial<BusinessMetadata> = {
+    ...existing,
+    theme,
+    defaultUnit,
+  };
 
   try {
     await auth.api.updateOrganization({
@@ -152,4 +161,62 @@ export async function removeLogo(slug: string): Promise<SettingsResult> {
   });
   refresh(slug);
   return { ok: true, message: "Logo removed." };
+}
+
+const applyFormSchema = z.object({
+  enabled: z.boolean(),
+  intro: z.string().trim().max(1000, "Keep the introduction under 1,000 characters."),
+  services: z
+    .array(z.string().trim().max(120, "Keep each service under 120 characters."))
+    .transform((list) => [...new Set(list.filter(Boolean))])
+    .pipe(z.array(z.string()).min(1, "List at least one service.").max(20, "Up to 20 services.")),
+  hidden: z.array(z.enum(Object.keys(OPTIONAL_APPLY_QUESTIONS) as [OptionalApplyQuestion])),
+});
+
+/** Website Apply form: on/off, introduction, services list and which optional questions to ask. */
+export async function saveApplyFormSettings(
+  slug: string,
+  raw: z.input<typeof applyFormSchema>,
+): Promise<SettingsResult> {
+  const ctx = await requireSettingsAccess(slug);
+  if (!ctx) return fail("Only administrators can change settings.");
+  const parsed = applyFormSchema.safeParse(raw);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const { enabled, intro, services, hidden } = parsed.data;
+
+  const org = await db.query.organization.findFirst({
+    where: eq(organization.id, ctx.tenantId),
+    columns: { metadata: true },
+  });
+  if (!org) return fail("Business not found.");
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = org.metadata ? JSON.parse(org.metadata) : {};
+  } catch {}
+  const metadata = {
+    ...existing,
+    services,
+    applyForm: { enabled, hidden, intro: intro || DEFAULT_APPLY_INTRO },
+  };
+  try {
+    await auth.api.updateOrganization({
+      headers: await headers(),
+      body: { organizationId: ctx.tenantId, data: { metadata } },
+    });
+  } catch (err) {
+    if (err instanceof APIError) return fail(err.body?.message ?? err.message);
+    throw err;
+  }
+  await writeAudit({
+    tenantId: ctx.tenantId,
+    actorUserId: ctx.userId,
+    action: "settings.apply_form_updated",
+    targetType: "organization",
+    targetId: ctx.tenantId,
+    metadata: { enabled, services, hidden },
+  });
+  refresh(slug);
+  revalidatePath(`/${slug}/join`);
+  revalidatePath(`/embed/${slug}/join`);
+  return { ok: true, message: "Apply form saved." };
 }

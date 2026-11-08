@@ -140,9 +140,11 @@ logo (like Jacob's) suits the dark Next Level theme and disappears on PTForge Li
 
 ### Weights
 
-Loads are always stored in kg. Each person picks kg or lb with the switch in the header (saved
-to their account); `src/lib/units.ts` converts, and `<Weight kg={…} />` shows a load in the
-viewer's unit.
+Loads are always stored in kg. Each person has two switches in the header, saved to their
+account: **SBD** for squat, bench and deadlift (and their 1RMs) and **Other** for everything
+else, including body weight. `src/lib/units.ts` converts; `<Weight kg={…} sbd />` shows a load
+in the viewer's unit. Height is stored in cm and shown in feet and inches to people whose
+Other unit is lb.
 
 ### Roles
 
@@ -279,6 +281,37 @@ Preview deployments without the key print emails to the Vercel function logs.
   (`src/server/auth/session-policy.ts`).
 - Resetting a password signs that person out on every other device.
 
-## 8. Left for phase 1
+## 8. Clients and the website Apply form
 
-- Client profiles, the website enquiry form, the exercise library and imports (steps 5 to 7).
+Signing up follows Jacob's prototype:
+
+1. **Apply (Step 1).** A person fills in the public form at `ptforge.app/<business>/join` (or
+   the copy embedded in the coach's website) and appears in **Clients** as a **lead**.
+   Administrators, managers and the coach they asked for get an email.
+2. **Onboarding call.** A coach gets in touch, assigns a trainer, and fills in the **Detailed
+   intake (Step 2)** on the client's profile.
+3. **Invite to app** sends the client an invitation; when they accept, their login is linked to
+   the profile and they become **active**.
+
+Coaches can also add clients by hand (**Add client**; only the name is required). A trainer who
+adds a client becomes their trainer automatically. Clients can read their own answers but
+only coaches edit them.
+
+**Settings → Website Apply form** turns the form on or off, edits the introduction and the list
+of services, chooses which optional questions to ask, and gives you the link and the embed code
+(an `<iframe>` that resizes itself). Only `/embed/…` pages may be shown inside other websites.
+
+**Spam protection:** a hidden honeypot field, a minimum time to fill in the form, at most 5
+applications per hour from one address and 30 per hour per business, and Cloudflare Turnstile
+when it's configured. To turn Turnstile on (recommended before sharing the form widely):
+
+1. In Cloudflare, go to **Turnstile → Add widget**, add the hostnames `ptforge.app` and
+   `ptforge.vercel.app`, and choose **Managed**.
+2. In Vercel (Production), add `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (the site key) and
+   `TURNSTILE_SECRET_KEY` (the secret key), then redeploy.
+
+Without those two variables the form still works, just without the "I'm human" check.
+
+## 9. Left for phase 1
+
+- The exercise library and imports (steps 6 and 7).

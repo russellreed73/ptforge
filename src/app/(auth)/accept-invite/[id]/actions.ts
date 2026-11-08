@@ -57,9 +57,10 @@ export async function createInvitedAccount(
       },
     });
     // Start with the business's default weight unit; they can switch any time.
+    const unit = readBusinessMetadata(inv.businessMetadata).defaultUnit;
     await db
       .update(user)
-      .set({ preferredUnit: readBusinessMetadata(inv.businessMetadata).defaultUnit })
+      .set({ preferredUnit: unit, sbdUnit: unit })
       .where(eq(user.id, created.user.id));
   } catch (err) {
     if (err instanceof APIError) return { ok: false, error: err.body?.message ?? err.message };

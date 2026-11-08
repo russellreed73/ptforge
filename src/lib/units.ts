@@ -3,6 +3,14 @@
  * and input in the person's preferred unit.
  */
 export const UNITS = ["kg", "lb"] as const;
+
+/**
+ * Each person has two unit settings: one for the competition lifts (squat,
+ * bench, deadlift: "sbd") and one for everything else ("general"), like
+ * Jacob's prototype. Many lifters compete in kg but load accessories in lb.
+ */
+export type UnitKind = "sbd" | "general";
+export type UnitPrefs = Record<UnitKind, Unit>;
 export type Unit = (typeof UNITS)[number];
 
 export const KG_PER_LB = 0.45359237; // exact, by international definition

@@ -6,22 +6,108 @@ import type { ComponentProps, ReactNode } from "react";
  * pages pick up whichever theme is active.
  */
 
+export const inputClass =
+  "border-border bg-surface text-foreground placeholder:text-muted focus:border-primary rounded-none border px-3 py-2.5 text-base focus:outline-none disabled:opacity-60";
+export const labelTextClass =
+  "font-heading text-subtle text-xs font-semibold tracking-[0.15em] uppercase";
+
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <span className={labelTextClass}>
+      {label}
+      {required && (
+        <span className="text-primary" aria-hidden>
+          {" "}
+          *
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function Field({
   label,
   hint,
+  className = "",
   ...input
 }: ComponentProps<"input"> & { label: string; hint?: string }) {
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
-      <span className="font-heading text-subtle text-xs font-semibold tracking-[0.15em] uppercase">
-        {label}
-      </span>
-      <input
-        className="border-border bg-surface text-foreground placeholder:text-muted focus:border-primary rounded-none border px-3 py-2.5 text-base focus:outline-none disabled:opacity-60"
-        {...input}
-      />
+    <label className={`flex flex-col gap-1.5 text-sm ${className}`}>
+      <FieldLabel label={label} required={input.required} />
+      <input className={inputClass} {...input} />
       {hint && <span className="text-muted text-xs">{hint}</span>}
     </label>
+  );
+}
+
+export function TextAreaField({
+  label,
+  hint,
+  className = "",
+  rows = 3,
+  ...input
+}: ComponentProps<"textarea"> & { label: string; hint?: string }) {
+  return (
+    <label className={`flex flex-col gap-1.5 text-sm ${className}`}>
+      <FieldLabel label={label} required={input.required} />
+      <textarea rows={rows} className={`${inputClass} resize-y`} {...input} />
+      {hint && <span className="text-muted text-xs">{hint}</span>}
+    </label>
+  );
+}
+
+export function SelectField({
+  label,
+  hint,
+  className = "",
+  options,
+  placeholder = "Select…",
+  ...input
+}: ComponentProps<"select"> & {
+  label: string;
+  hint?: string;
+  options: readonly (string | { value: string; label: string })[];
+  placeholder?: string | null;
+}) {
+  return (
+    <label className={`flex flex-col gap-1.5 text-sm ${className}`}>
+      <FieldLabel label={label} required={input.required} />
+      <select className={inputClass} {...input}>
+        {placeholder !== null && <option value="">{placeholder}</option>}
+        {options.map((o) => {
+          const { value, label: text } = typeof o === "string" ? { value: o, label: o } : o;
+          return (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          );
+        })}
+      </select>
+      {hint && <span className="text-muted text-xs">{hint}</span>}
+    </label>
+  );
+}
+
+/** Small coloured label, e.g. a client's status. */
+export function Pill({
+  tone = "neutral",
+  children,
+}: {
+  tone?: "neutral" | "primary" | "accent" | "muted";
+  children: ReactNode;
+}) {
+  const tones = {
+    neutral: "border-border text-foreground",
+    primary: "border-primary text-primary",
+    accent: "border-accent text-accent",
+    muted: "border-border text-muted",
+  };
+  return (
+    <span
+      className={`font-heading inline-block border px-2 py-0.5 text-[0.7rem] font-semibold tracking-[0.12em] uppercase ${tones[tone]}`}
+    >
+      {children}
+    </span>
   );
 }
 

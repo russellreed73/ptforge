@@ -11,6 +11,23 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4.5mb",
     },
   },
+  // Pages can't be shown inside other sites' frames (clickjacking), except
+  // the embeddable Apply form under /embed/, which coaches put on their sites.
+  async headers() {
+    return [
+      {
+        source: "/((?!embed/).*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      },
+      {
+        source: "/embed/:path*",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *" }],
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

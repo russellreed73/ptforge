@@ -9,6 +9,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { parseRoles } from "@/server/auth/permissions";
 import { db } from "@/server/db";
 import {
+  athleteIntakes,
   athleteProfiles,
   athleteTrainers,
   exercises,
@@ -70,12 +71,12 @@ describe.skipIf(!hasDb)("tenant isolation (Row-Level Security)", () => {
   describe("who sees which athletes", () => {
     it("administrator sees every athlete in their business", async () => {
       const ctx = await ctxFor("jacob@example.com", "jacob-strength");
-      expect(await withTenant(ctx, athleteNames)).toEqual(["Alex", "Casey", "Jordan"]);
+      expect(await withTenant(ctx, athleteNames)).toEqual(["Alex", "Casey", "Jordan", "Morgan"]);
     });
 
     it("manager (also a trainer) sees every athlete", async () => {
       const ctx = await ctxFor("maya@example.com", "jacob-strength");
-      expect(await withTenant(ctx, athleteNames)).toEqual(["Alex", "Casey", "Jordan"]);
+      expect(await withTenant(ctx, athleteNames)).toEqual(["Alex", "Casey", "Jordan", "Morgan"]);
     });
 
     it("trainer sees only assigned athletes", async () => {
@@ -207,6 +208,126 @@ describe.skipIf(!hasDb)("tenant isolation (Row-Level Security)", () => {
       });
       expect(result.visible).toBeGreaterThanOrEqual(10);
       expect(result.changed).toBe(0);
+    });
+  });
+
+  describe("client application and intake (step 5)", () => {
+    const intakeOwners = (tx: TenantTx) =>
+      tx
+        .select({ name: athleteProfiles.firstName })
+        .from(athleteIntakes)
+        .innerJoin(athleteProfiles, eq(athleteProfiles.id, athleteIntakes.athleteProfileId))
+        .then((rows) => rows.map((r) => r.name));
+
+    it("intake is visible to the client's trainer, admins and the client only", async () => {
+      const sam = await ctxFor("sam@example.com", "jacob-strength");
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      const alex = await ctxFor("alex@example.com", "jacob-strength");
+      const riley = await ctxFor("riley@example.com", "riverside-pt");
+      expect(await withTenant(sam, intakeOwners)).toEqual(["Alex"]);
+      expect(await withTenant(jacob, intakeOwners)).toEqual(["Alex"]);
+      expect(await withTenant(alex, intakeOwners)).toEqual(["Alex"]);
+      expect(await withTenant(riley, intakeOwners)).toEqual([]);
+    });
+
+    it("a trainer can't read the intake of a client who isn't theirs", async () => {
+      const maya = await ctxFor("maya@example.com", "jacob-strength");
+      // Maya is a manager too, so use a trainer-only view of her: drop the manager role.
+      const trainerOnly = { ...maya, roles: ["trainer" as const] };
+      expect(await withTenant(trainerOnly, intakeOwners)).toEqual([]);
+    });
+
+    it("clients can read but not edit their own profile or intake", async () => {
+      const alex = await ctxFor("alex@example.com", "jacob-strength");
+      const result = await tryThenRollback(alex, async (tx) => {
+        const profiles = await tx
+          .update(athleteProfiles)
+          .set({ status: "active", goals: "changed" })
+          .returning({ id: athleteProfiles.id });
+        const intakes = await tx
+          .update(athleteIntakes)
+          .set({ injuries: "changed" })
+          .returning({ id: athleteIntakes.athleteProfileId });
+        return { profiles: profiles.length, intakes: intakes.length };
+      });
+      expect(result).toEqual({ profiles: 0, intakes: 0 });
+    });
+
+    it("a trainer who adds a client is assigned to them, and only to their own new clients", async () => {
+      const sam = await ctxFor("sam@example.com", "jacob-strength");
+      const result = await tryThenRollback(sam, async (tx) => {
+        const newId = crypto.randomUUID();
+        await tx.insert(athleteProfiles).values({
+          id: newId,
+          tenantId: sam.tenantId,
+          firstName: "New",
+          lastName: "Client",
+          createdBy: sam.userId,
+        });
+        const claimed = await tx.execute<{ ok: boolean }>(
+          sql`select app_claim_new_athlete(${newId}) as ok`,
+        );
+        const jordan = await tx.execute<{ ok: boolean }>(
+          sql`select app_claim_new_athlete(id) as ok from athlete_profiles where email = 'jordan@example.com'`,
+        );
+        const visible = await tx
+          .select({ id: athleteProfiles.id })
+          .from(athleteProfiles)
+          .where(eq(athleteProfiles.id, newId));
+        return {
+          claimed: claimed.rows[0].ok,
+          jordanRows: jordan.rows.length,
+          visible: visible.length,
+        };
+      });
+      expect(result.claimed).toBe(true);
+      expect(result.jordanRows).toBe(0); // Jordan isn't visible to Sam, so nothing to claim
+      expect(result.visible).toBe(1);
+    });
+
+    it("can't add a client on someone else's behalf", async () => {
+      const sam = await ctxFor("sam@example.com", "jacob-strength");
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      await expect(
+        tryThenRollback(sam, (tx) =>
+          tx.insert(athleteProfiles).values({
+            tenantId: sam.tenantId,
+            firstName: "Sneaky",
+            lastName: "Client",
+            createdBy: jacob.userId,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("athletes can't add clients", async () => {
+      const alex = await ctxFor("alex@example.com", "jacob-strength");
+      await expect(
+        tryThenRollback(alex, (tx) =>
+          tx.insert(athleteProfiles).values({
+            tenantId: alex.tenantId,
+            firstName: "Friend",
+            lastName: "Of Alex",
+            createdBy: alex.userId,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("can't write an intake for another business's client", async () => {
+      const riley = await ctxFor("riley@example.com", "riverside-pt");
+      const alexProfile = await db.query.athleteProfiles.findFirst({
+        where: eq(athleteProfiles.email, "alex@example.com"),
+      });
+      await expect(
+        tryThenRollback(riley, (tx) =>
+          tx.insert(athleteIntakes).values({
+            athleteProfileId: alexProfile!.id,
+            tenantId: riley.tenantId,
+            injuries: "x",
+          }),
+        ),
+      ).rejects.toThrow();
     });
   });
 });
