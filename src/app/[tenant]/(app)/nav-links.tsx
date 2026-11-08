@@ -14,7 +14,7 @@ function isActive(path: string, href: string, base: string) {
 export function NavLinks({ links, base }: { links: NavLink[]; base: string }) {
   const path = usePathname();
   return (
-    <nav className="hidden gap-6 md:flex">
+    <nav className="hidden gap-5 lg:flex xl:gap-6">
       {links.map((l) => {
         const active = isActive(path, l.href, base);
         return (
@@ -50,7 +50,7 @@ export function MobileMenu({
   const open = openOn === path;
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <button
         aria-expanded={open}
         aria-controls="mobile-menu"

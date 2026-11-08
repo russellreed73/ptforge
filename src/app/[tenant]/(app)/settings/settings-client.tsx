@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Button, ErrorText, Field, SuccessText } from "@/components/ui";
 import { UNITS, type Unit } from "@/lib/units";
-import { removeLogo, saveBusinessDetails, uploadLogo, type SettingsResult } from "./actions";
+import { OPTIONAL_APPLY_QUESTIONS, type OptionalApplyQuestion } from "@/lib/clients";
+import {
+  removeLogo,
+  saveApplyFormSettings,
+  saveBusinessDetails,
+  uploadLogo,
+  type SettingsResult,
+} from "./actions";
 
 type ThemeOption = {
   id: string;
@@ -122,9 +129,10 @@ export function BusinessDetailsForm({
       </fieldset>
 
       <fieldset>
-        <legend className={`${labelClass} mb-1`}>Default weight unit for new clients</legend>
+        <legend className={`${labelClass} mb-1`}>Default weight units for new clients</legend>
         <p className="text-muted mb-3 text-sm">
-          Everyone can still switch between kg and lb themselves at any time.
+          Used for both squat/bench/deadlift and everything else. Everyone can switch either one
+          themselves at any time.
         </p>
         <div className="flex gap-3">
           {UNITS.map((u) => (
@@ -253,5 +261,185 @@ export function LogoForm({
       </form>
       <Feedback result={result} />
     </div>
+  );
+}
+
+/** Website Apply form: on/off, intro, services, optional questions, and the link/embed code. */
+export function ApplyFormSettings({
+  slug,
+  origin,
+  initial,
+}: {
+  slug: string;
+  origin: string;
+  initial: { enabled: boolean; intro: string; services: string[]; hidden: OptionalApplyQuestion[] };
+}) {
+  const router = useRouter();
+  const [enabled, setEnabled] = useState(initial.enabled);
+  const [intro, setIntro] = useState(initial.intro);
+  const [services, setServices] = useState(initial.services.join("\n"));
+  const [hidden, setHidden] = useState<OptionalApplyQuestion[]>(initial.hidden);
+  const [result, setResult] = useState<SettingsResult | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const link = `${origin}/${slug}/join`;
+  const embedUrl = `${origin}/embed/${slug}/join`;
+  const snippet = `<iframe id="ptforge-apply" src="${embedUrl}" title="Apply" style="width:100%;border:0;min-height:900px" loading="lazy"></iframe>
+<script>
+  window.addEventListener("message", function (e) {
+    if (e.origin === "${origin}" && e.data && e.data.type === "ptforge:height") {
+      document.getElementById("ptforge-apply").style.height = e.data.height + "px";
+    }
+  });
+</script>`;
+  const copy = async (what: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(what);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      setCopied(null);
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-8"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await saveApplyFormSettings(slug, {
+            enabled,
+            intro,
+            services: services.split("\n"),
+            hidden,
+          });
+          setResult(r);
+          if (r.ok) router.refresh();
+        });
+      }}
+    >
+      <label className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => setEnabled(e.target.checked)}
+          className="accent-primary mt-1 size-4"
+        />
+        <span>
+          <span className="font-heading block text-sm font-semibold tracking-[0.12em] uppercase">
+            Accept applications
+          </span>
+          <span className="text-muted text-sm">
+            People fill in the Apply form from your website or Instagram link; each one shows up as
+            a lead in Clients and you get an email.
+          </span>
+        </span>
+      </label>
+
+      <div className="flex flex-col gap-3">
+        <p className={labelClass}>Link to your form</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href={link}
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground decoration-primary break-all underline underline-offset-4"
+          >
+            {link}
+          </a>
+          <Button
+            type="button"
+            variant="secondary"
+            className="px-4 py-1.5"
+            onClick={() => copy("link", link)}
+          >
+            {copied === "link" ? "Copied" : "Copy link"}
+          </Button>
+        </div>
+        <p className={`${labelClass} mt-3`}>Or put it inside your website</p>
+        <p className="text-muted text-sm">
+          Paste this where the form should appear on your site (for a plain HTML site like
+          Jacob&apos;s, straight into the page). It resizes itself to fit.
+        </p>
+        <textarea
+          readOnly
+          rows={5}
+          value={snippet}
+          aria-label="Embed code"
+          className="border-border bg-background text-subtle w-full border p-3 font-mono text-xs"
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="px-4 py-1.5"
+            onClick={() => copy("snippet", snippet)}
+          >
+            {copied === "snippet" ? "Copied" : "Copy embed code"}
+          </Button>
+        </div>
+      </div>
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className={labelClass}>Introduction</span>
+        <textarea
+          rows={3}
+          maxLength={1000}
+          value={intro}
+          onChange={(e) => setIntro(e.target.value)}
+          className="border-border bg-surface text-foreground focus:border-primary border px-3 py-2.5 text-base focus:outline-none"
+        />
+        <span className="text-muted text-xs">Shown above the form.</span>
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className={labelClass}>Services (one per line)</span>
+        <textarea
+          rows={4}
+          value={services}
+          onChange={(e) => setServices(e.target.value)}
+          className="border-border bg-surface text-foreground focus:border-primary border px-3 py-2.5 text-base focus:outline-none"
+        />
+        <span className="text-muted text-xs">
+          The choices for &ldquo;What services are you interested in?&rdquo;, also used on client
+          profiles.
+        </span>
+      </label>
+
+      <fieldset>
+        <legend className={`${labelClass} mb-1`}>Questions to ask</legend>
+        <p className="text-muted mb-3 text-sm">
+          Name, email, service and goals are always asked. &ldquo;Who would you like to coach
+          with?&rdquo; only appears when the business has more than one trainer.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(Object.entries(OPTIONAL_APPLY_QUESTIONS) as [OptionalApplyQuestion, string][]).map(
+            ([key, label]) => (
+              <label key={key} className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!hidden.includes(key)}
+                  onChange={(e) =>
+                    setHidden(e.target.checked ? hidden.filter((h) => h !== key) : [...hidden, key])
+                  }
+                  className="accent-primary size-4"
+                />
+                {label}
+              </label>
+            ),
+          )}
+        </div>
+      </fieldset>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : "Save Apply form"}
+        </Button>
+        <Feedback result={result} />
+      </div>
+    </form>
   );
 }

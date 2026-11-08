@@ -87,6 +87,8 @@ export const auth = betterAuth({
     additionalFields: {
       // Weight display unit; loads are always stored in kg.
       preferredUnit: { type: "string", defaultValue: "kg", input: false },
+      // Squat, bench and deadlift can use a different unit (Jacob's prototype).
+      sbdUnit: { type: "string", defaultValue: "kg", input: false },
     },
   },
 

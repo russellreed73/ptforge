@@ -5,7 +5,9 @@ import { THEMES } from "@/lib/themes";
 import { can } from "@/server/auth/permissions";
 import { requireTenant } from "@/server/auth/session";
 import { brandAssetUrl, getBusinessBranding } from "@/server/brand/queries";
-import { BusinessDetailsForm, LogoForm } from "./settings-client";
+import { headers } from "next/headers";
+import { appBaseUrl } from "@/server/auth/origins";
+import { ApplyFormSettings, BusinessDetailsForm, LogoForm } from "./settings-client";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -15,6 +17,10 @@ export default async function SettingsPage({ params }: PageProps<"/[tenant]/sett
   const brand = await getBusinessBranding(ctx.tenantId);
   if (!brand) notFound();
 
+  const h = await headers();
+  const origin =
+    appBaseUrl() ??
+    `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
   const themes = Object.entries(THEMES).map(([id, t]) => ({ id, ...t }));
   const logo = brand.logoVersion
     ? {
@@ -39,6 +45,22 @@ export default async function SettingsPage({ params }: PageProps<"/[tenant]/sett
             slug={brand.slug}
             initial={{ name: brand.name, theme: brand.theme, defaultUnit: brand.defaultUnit }}
             themes={themes}
+          />
+        </Card>
+      </section>
+
+      <section className="mb-12">
+        <SectionTitle>Website Apply form</SectionTitle>
+        <Card>
+          <ApplyFormSettings
+            slug={brand.slug}
+            origin={origin}
+            initial={{
+              enabled: brand.applyForm.enabled,
+              intro: brand.applyForm.intro,
+              services: brand.services,
+              hidden: brand.applyForm.hidden,
+            }}
           />
         </Card>
       </section>

@@ -48,7 +48,10 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/[
   const session = await getSession();
   const brand = await getBusinessBranding(ctx.tenantId);
   const theme = brand?.theme ?? "next-level";
-  const unit = isUnit(session?.user.preferredUnit) ? session.user.preferredUnit : "kg";
+  const units = {
+    general: isUnit(session?.user.preferredUnit) ? session.user.preferredUnit : "kg",
+    sbd: isUnit(session?.user.sbdUnit) ? session.user.sbdUnit : "kg",
+  } as const;
   const suggestTwoFactor = isStaff(ctx.roles) && !session?.user.twoFactorEnabled;
   const accountHref = `/account?back=${encodeURIComponent(base)}`;
 
@@ -80,11 +83,11 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/[
   );
 
   return (
-    <UnitProvider unit={unit}>
+    <UnitProvider units={units}>
       <div data-theme={theme} className="bg-background text-foreground flex flex-1 flex-col">
         <header className="border-border bg-background/95 sticky top-0 z-10 border-b backdrop-blur">
           <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-3">
-            <div className="flex min-w-0 items-center gap-8">
+            <div className="flex min-w-0 items-center gap-6 xl:gap-8">
               <a
                 href={base}
                 className="flex min-w-0 items-center"
@@ -107,8 +110,8 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/[
               </a>
               <NavLinks links={links} base={base} />
             </div>
-            <div className="hidden items-center gap-5 md:flex">
-              <span className="font-heading text-muted hidden text-xs tracking-[0.15em] uppercase lg:inline">
+            <div className="hidden items-center gap-4 whitespace-nowrap lg:flex">
+              <span className="font-heading text-muted hidden text-xs tracking-[0.15em] whitespace-nowrap uppercase 2xl:inline">
                 {describeRoles(ctx.roles)}
               </span>
               {accountControls}

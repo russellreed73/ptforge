@@ -14,10 +14,12 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
   primaryKey,
+  smallint,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -39,7 +41,12 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 };
 
-/** A client of the business. Linked to a login (user) once they accept an invite. */
+/**
+ * A client of the business: a lead from the website Apply form, or someone a
+ * coach added. Linked to a login (user) once they accept an invite.
+ * The "Step 1 - Apply" answers live here; "Step 2 - Detailed intake" is in
+ * athlete_intakes.
+ */
 export const athleteProfiles = pgTable(
   "athlete_profiles",
   {
@@ -48,22 +55,86 @@ export const athleteProfiles = pgTable(
     userId: uuid("user_id").references(() => user.id, { onDelete: "set null" }),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
-    email: text("email").notNull(),
+    /** Optional for clients a coach adds by hand; required to invite them. */
+    email: text("email"),
     phone: text("phone"),
     dateOfBirth: date("date_of_birth"),
-    /** personal_training | powerlifting | both */
-    serviceType: text("service_type").notNull().default("personal_training"),
+    /** One of the business's services (Settings), as text so renaming a service keeps history. */
+    serviceType: text("service_type").notNull().default(""),
+    /** Main training goals (Apply). */
     goals: text("goals"),
-    /** active | paused */
+    /** lead | active | paused */
     status: text("status").notNull().default("active"),
+    /** manual | website_form | invitation */
+    source: text("source").notNull().default("manual"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => user.id, { onDelete: "set null" }),
+
+    // Step 1 - Apply
+    pronouns: text("pronouns"),
+    /** male | female | other */
+    sex: text("sex"),
+    country: text("country"),
+    region: text("region"),
+    city: text("city"),
+    instagram: text("instagram"),
+    /** Trainer they asked for; null with coachPreference "unsure" or "none". */
+    preferredTrainerUserId: uuid("preferred_trainer_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /** trainer | unsure | none */
+    coachPreference: text("coach_preference"),
+    coachQualities: text("coach_qualities"),
+    heardAbout: text("heard_about"),
+    funFact: text("fun_fact"),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    /** Salted hash of the applicant's IP, only for rate limiting the public form. */
+    submittedIpHash: text("submitted_ip_hash"),
     ...timestamps,
   },
   (t) => [
     index("athlete_profiles_tenant_idx").on(t.tenantId),
     uniqueIndex("athlete_profiles_tenant_email_uq").on(t.tenantId, t.email),
+    index("athlete_profiles_tenant_status_idx").on(t.tenantId, t.status),
   ],
 );
+
+/**
+ * Step 2 - Detailed intake, filled in by the coach around the onboarding call.
+ * One row per client. Loads are kg, height is cm.
+ */
+export const athleteIntakes = pgTable("athlete_intakes", {
+  athleteProfileId: uuid("athlete_profile_id")
+    .primaryKey()
+    .references(() => athleteProfiles.id, { onDelete: "cascade" }),
+  tenantId: tenantId(),
+  exerciseHistory: text("exercise_history"),
+  signupReason: text("signup_reason"),
+  heightCm: numeric("height_cm", { precision: 5, scale: 1, mode: "number" }),
+  bodyWeightKg: numeric("body_weight_kg", { precision: 6, scale: 3, mode: "number" }),
+  occupation: text("occupation"),
+  stressLevel: smallint("stress_level"),
+  trainingDaysPerWeek: smallint("training_days_per_week"),
+  sleep: text("sleep"),
+  diet: text("diet"),
+  injuries: text("injuries"),
+  compSquatKg: numeric("comp_squat_kg", { precision: 6, scale: 3, mode: "number" }),
+  compBenchKg: numeric("comp_bench_kg", { precision: 6, scale: 3, mode: "number" }),
+  compDeadliftKg: numeric("comp_deadlift_kg", { precision: 6, scale: 3, mode: "number" }),
+  gymSquatKg: numeric("gym_squat_kg", { precision: 6, scale: 3, mode: "number" }),
+  gymBenchKg: numeric("gym_bench_kg", { precision: 6, scale: 3, mode: "number" }),
+  gymDeadliftKg: numeric("gym_deadlift_kg", { precision: 6, scale: 3, mode: "number" }),
+  weeklySetsSquat: smallint("weekly_sets_squat"),
+  weeklySetsBench: smallint("weekly_sets_bench"),
+  weeklySetsDeadlift: smallint("weekly_sets_deadlift"),
+  weeklySetsVerticalPull: smallint("weekly_sets_vertical_pull"),
+  weeklySetsCore: smallint("weekly_sets_core"),
+  /** See POWERLIFTING_EXPERIENCE in src/lib/clients.ts */
+  powerliftingExperience: text("powerlifting_experience"),
+  otherInfo: text("other_info"),
+  updatedBy: uuid("updated_by").references(() => user.id, { onDelete: "set null" }),
+  ...timestamps,
+});
 
 /** Which trainers work with which athlete. An athlete can have several. */
 export const athleteTrainers = pgTable(
@@ -151,6 +222,14 @@ export const businessAssets = pgTable(
 export const athleteProfilesRelations = relations(athleteProfiles, ({ one, many }) => ({
   user: one(user, { fields: [athleteProfiles.userId], references: [user.id] }),
   trainers: many(athleteTrainers),
+  intake: one(athleteIntakes),
+}));
+
+export const athleteIntakesRelations = relations(athleteIntakes, ({ one }) => ({
+  athlete: one(athleteProfiles, {
+    fields: [athleteIntakes.athleteProfileId],
+    references: [athleteProfiles.id],
+  }),
 }));
 
 export const athleteTrainersRelations = relations(athleteTrainers, ({ one }) => ({

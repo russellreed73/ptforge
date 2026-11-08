@@ -1,3 +1,4 @@
+import { readApplyFormSettings, readServices, type ApplyFormSettings } from "./clients";
 import { isUnit, type Unit } from "./units";
 
 /**
@@ -36,7 +37,14 @@ export function isThemeId(value: unknown): value is ThemeId {
 }
 
 /** A business's settings, stored as JSON in organization.metadata. */
-export type BusinessMetadata = { theme: ThemeId; defaultUnit: Unit };
+export type BusinessMetadata = {
+  theme: ThemeId;
+  defaultUnit: Unit;
+  /** Services offered, shown on the Apply form and client profiles. */
+  services: string[];
+  /** Website Apply form settings. */
+  applyForm: ApplyFormSettings;
+};
 
 export function readBusinessMetadata(metadata?: string | null): BusinessMetadata {
   let raw: Record<string, unknown> = {};
@@ -48,6 +56,8 @@ export function readBusinessMetadata(metadata?: string | null): BusinessMetadata
   return {
     theme: isThemeId(raw.theme) ? raw.theme : DEFAULT_THEME,
     defaultUnit: isUnit(raw.defaultUnit) ? raw.defaultUnit : "kg",
+    services: readServices(raw.services),
+    applyForm: readApplyFormSettings(raw.applyForm),
   };
 }
 

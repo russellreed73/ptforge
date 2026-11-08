@@ -30,6 +30,7 @@ export const user = pgTable("user", {
   banExpires: timestamp("ban_expires"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   preferredUnit: text("preferred_unit").default("kg").notNull(),
+  sbdUnit: text("sbd_unit").default("kg").notNull(),
 });
 
 export const session = pgTable(
