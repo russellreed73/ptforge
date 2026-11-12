@@ -44,6 +44,8 @@ export type BusinessMetadata = {
   services: string[];
   /** Website Apply form settings. */
   applyForm: ApplyFormSettings;
+  /** Show PTForge's shared starter exercises in the library (default on). */
+  showStarterExercises: boolean;
 };
 
 export function readBusinessMetadata(metadata?: string | null): BusinessMetadata {
@@ -58,6 +60,7 @@ export function readBusinessMetadata(metadata?: string | null): BusinessMetadata
     defaultUnit: isUnit(raw.defaultUnit) ? raw.defaultUnit : "kg",
     services: readServices(raw.services),
     applyForm: readApplyFormSettings(raw.applyForm),
+    showStarterExercises: raw.showStarterExercises !== false,
   };
 }
 

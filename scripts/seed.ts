@@ -89,28 +89,8 @@ async function assign(tenantId: string, athleteProfileId: string, trainerUserId:
     .onConflictDoNothing();
 }
 
-const STARTER_EXERCISES = [
-  { name: "Back Squat", category: "Squat", equipment: "Barbell", isCompetitionLift: true },
-  { name: "Bench Press", category: "Press", equipment: "Barbell", isCompetitionLift: true },
-  { name: "Deadlift", category: "Hinge", equipment: "Barbell", isCompetitionLift: true },
-  { name: "Overhead Press", category: "Press", equipment: "Barbell", isCompetitionLift: false },
-  { name: "Romanian Deadlift", category: "Hinge", equipment: "Barbell", isCompetitionLift: false },
-  { name: "Pull-up", category: "Pull", equipment: "Bodyweight", isCompetitionLift: false },
-  { name: "Dumbbell Row", category: "Pull", equipment: "Dumbbell", isCompetitionLift: false },
-  { name: "Goblet Squat", category: "Squat", equipment: "Kettlebell", isCompetitionLift: false },
-  {
-    name: "Walking Lunge",
-    category: "Single leg",
-    equipment: "Dumbbell",
-    isCompetitionLift: false,
-  },
-  { name: "Plank", category: "Core", equipment: "Bodyweight", isCompetitionLift: false },
-];
-
 async function main() {
-  // Shared starter library (tenant_id NULL), visible to every business.
-  const globalCount = await db.$count(exercises);
-  if (globalCount === 0) await db.insert(exercises).values(STARTER_EXERCISES);
+  // PTForge's shared starter library comes from migration 0007.
 
   const jacob = await ensureUser("Jacob Reed", "jacob@example.com");
   const maya = await ensureUser("Maya Chen", "maya@example.com");
@@ -228,6 +208,44 @@ async function main() {
   await assign(jacobStrength, alexProfile, sam);
   await assign(jacobStrength, jordan, maya);
   await assign(jacobStrength, casey, jacob);
+
+  // A few of Jacob's own exercises, as in his prototype.
+  const jacobExercises = await db.$count(exercises, eq(exercises.tenantId, jacobStrength));
+  if (jacobExercises === 0) {
+    await db.insert(exercises).values([
+      {
+        tenantId: jacobStrength,
+        name: "Banded Step-ups",
+        primaryMuscles: ["Quads"],
+        category: "Squat accessory",
+        equipment: "Band",
+        movement: "Single leg",
+        tags: ["squat", "quads", "single leg", "knee friendly"],
+        createdBy: jacob,
+      },
+      {
+        tenantId: jacobStrength,
+        name: "SL Hamstring Curls",
+        primaryMuscles: ["Hamstrings"],
+        category: "Deadlift accessory",
+        equipment: "Machine",
+        movement: "Isolation",
+        tags: ["hamstrings", "single leg", "machine", "isolation"],
+        createdBy: jacob,
+      },
+      {
+        tenantId: jacobStrength,
+        name: "Incline Curls",
+        primaryMuscles: ["Biceps"],
+        category: "Arms",
+        equipment: "Dumbbell",
+        movement: "Isolation",
+        tags: ["biceps", "arms", "stretch", "curl"],
+        cues: "Let the arms hang behind you; no swinging.",
+        createdBy: jacob,
+      },
+    ]);
+  }
 
   const riverside = await ensureTenant("Riverside PT", "riverside-pt", riley);
   await ensureAthlete(riverside, {
