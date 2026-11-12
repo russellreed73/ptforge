@@ -22,6 +22,7 @@ import {
   smallint,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth";
 
@@ -157,25 +158,73 @@ export const athleteTrainers = pgTable(
   ],
 );
 
-/** Exercise library. tenant_id NULL = PTForge's shared starter library. */
+/**
+ * Uploaded demo videos (Cloudflare Stream). Exercises point at one of these,
+ * or carry a plain link (YouTube, Vimeo, Google Drive) in demo_video_url.
+ */
+export const videoAssets = pgTable(
+  "video_assets",
+  {
+    id: id(),
+    tenantId: tenantId(),
+    /** cloudflare_stream */
+    provider: text("provider").notNull().default("cloudflare_stream"),
+    /** The provider's id for the video (Stream "uid"). */
+    providerRef: text("provider_ref").notNull(),
+    /** uploading | processing | ready | error */
+    status: text("status").notNull().default("uploading"),
+    fileName: text("file_name"),
+    durationSeconds: numeric("duration_seconds", { precision: 8, scale: 1, mode: "number" }),
+    createdBy: uuid("created_by").references(() => user.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("video_assets_tenant_idx").on(t.tenantId),
+    uniqueIndex("video_assets_provider_ref_uq").on(t.provider, t.providerRef),
+  ],
+);
+
+/**
+ * Exercise library. tenant_id NULL = PTForge's shared starter library, which
+ * every business can see and copy; a business's own exercises have its tenant_id.
+ * Fields follow Jacob's prototype: muscle group, lift family, equipment,
+ * movement type, tags and coaching cues.
+ */
 export const exercises = pgTable(
   "exercises",
   {
     id: id(),
     tenantId: uuid("tenant_id").references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Lift family, e.g. Squat, Bench accessory, Arms, Warmup. */
     category: text("category"),
     equipment: text("equipment"),
+    /** Muscle group(s), e.g. ["Quads"]. */
     primaryMuscles: text("primary_muscles").array(),
+    /** Movement type, e.g. Compound, Isolation, Hinge, Mobility. */
+    movement: text("movement"),
+    /** Lower-case search tags; "sbd" marks the competition lifts. */
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     cues: text("cues"),
     isCompetitionLift: boolean("is_competition_lift").notNull().default(false),
-    /** Filled in phase 1: video_assets id or a YouTube URL. */
+    /** A YouTube, Vimeo, Google Drive or other https link. */
     demoVideoUrl: text("demo_video_url"),
+    videoAssetId: uuid("video_asset_id").references(() => videoAssets.id, { onDelete: "set null" }),
+    /** For a business's customised copy of a starter exercise: the original. */
+    sourceExerciseId: uuid("source_exercise_id").references((): AnyPgColumn => exercises.id, {
+      onDelete: "set null",
+    }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdBy: uuid("created_by").references(() => user.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (t) => [index("exercises_tenant_idx").on(t.tenantId)],
+  (t) => [
+    index("exercises_tenant_idx").on(t.tenantId),
+    index("exercises_source_idx").on(t.tenantId, t.sourceExerciseId),
+  ],
 );
 
 /** Who did what, for sensitive actions and platform-owner support sessions. */

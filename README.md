@@ -312,6 +312,36 @@ when it's configured. To turn Turnstile on (recommended before sharing the form 
 
 Without those two variables the form still works, just without the "I'm human" check.
 
-## 9. Left for phase 1
+## 9. Exercise library and demo videos
 
-- The exercise library and imports (steps 6 and 7).
+**Exercises** lists the business's own exercises plus PTForge's 57 starter exercises (added by
+migration 0007), with the fields from Jacob's prototype: muscle group, lift family, equipment,
+movement type, tags and coaching cues. Search covers all of them; click a tag to search for it.
+The `sbd` tag (or the "Competition lift" box) marks squat, bench and deadlift, whose loads follow
+the SBD unit setting.
+
+- Starter exercises are shared by every business, so they can't be edited directly: **Copy to
+  customise** makes the business's own copy, which then replaces the original in its library.
+  Administrators can hide all starter exercises with the checkbox above the list.
+- Exercises are archived, never deleted, so programs that use them keep working.
+- Coaches (administrators, managers, trainers) manage the library; athletes don't see this page.
+
+**Demo videos** can be a link or an upload:
+
+- **Links:** YouTube, Vimeo and Google Drive links play on the exercise page; other links open in
+  a new tab. Google Drive videos must be shared as "Anyone with the link" to play.
+- **Uploads** go straight from the coach's browser to Cloudflare Stream (up to 200 MB and 10
+  minutes each) and play once Cloudflare has processed them. To turn uploads on:
+  1. In Cloudflare, open **Stream** and subscribe (about US$5/month per 1,000 minutes stored, plus
+     $1 per 1,000 minutes watched).
+  2. Create an API token (**My Profile → API Tokens → Create token**) with the permission
+     **Account → Stream → Edit**.
+  3. In Vercel (Production), add `CLOUDFLARE_ACCOUNT_ID` (shown on the Cloudflare account home
+     page) and `CLOUDFLARE_STREAM_API_TOKEN`. Optionally add `CLOUDFLARE_STREAM_CUSTOMER_CODE`, the
+     `customer-…` part of a Stream video's embed link. Redeploy.
+
+  Until then the upload option explains that it isn't set up, and links work as usual.
+
+## 10. Left for phase 1
+
+- Importing Jacob's clients, exercises and 320 videos (step 7).

@@ -4,7 +4,7 @@
  *
  * This is the phase 0 gate: these tests must pass before phase 1 starts.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { parseRoles } from "@/server/auth/permissions";
 import { db } from "@/server/db";
@@ -16,6 +16,7 @@ import {
   member,
   organization,
   user,
+  videoAssets,
 } from "@/server/db/schema";
 import { withTenant, type TenantTx } from "@/server/db/tenant";
 
@@ -203,10 +204,11 @@ describe.skipIf(!hasDb)("tenant isolation (Row-Level Security)", () => {
         const changed = await tx
           .update(exercises)
           .set({ name: "Hacked" })
+          .where(isNull(exercises.tenantId))
           .returning({ id: exercises.id });
         return { visible: visible.length, changed: changed.length };
       });
-      expect(result.visible).toBeGreaterThanOrEqual(10);
+      expect(result.visible).toBeGreaterThanOrEqual(50);
       expect(result.changed).toBe(0);
     });
   });
@@ -328,6 +330,74 @@ describe.skipIf(!hasDb)("tenant isolation (Row-Level Security)", () => {
           }),
         ),
       ).rejects.toThrow();
+    });
+  });
+
+  describe("exercise library and videos (step 6)", () => {
+    const names = (tx: TenantTx) =>
+      tx
+        .select({ name: exercises.name })
+        .from(exercises)
+        .where(sql`${exercises.tenantId} is not null`)
+        .then((rows) => rows.map((r) => r.name).sort());
+
+    it("a business sees its own exercises, not another's", async () => {
+      const sam = await ctxFor("sam@example.com", "jacob-strength");
+      const riley = await ctxFor("riley@example.com", "riverside-pt");
+      expect(await withTenant(sam, names)).toEqual([
+        "Banded Step-ups",
+        "Incline Curls",
+        "SL Hamstring Curls",
+      ]);
+      expect(await withTenant(riley, names)).toEqual([]);
+    });
+
+    it("athletes can't add or edit exercises", async () => {
+      const alex = await ctxFor("alex@example.com", "jacob-strength");
+      await expect(
+        tryThenRollback(alex, (tx) =>
+          tx.insert(exercises).values({ tenantId: alex.tenantId, name: "Alex's curl" }),
+        ),
+      ).rejects.toThrow();
+      const changed = await tryThenRollback(alex, (tx) =>
+        tx.update(exercises).set({ name: "x" }).returning({ id: exercises.id }),
+      );
+      expect(changed).toHaveLength(0);
+    });
+
+    it("nobody can delete exercises (they're archived instead)", async () => {
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      await expect(
+        tryThenRollback(jacob, (tx) =>
+          tx.delete(exercises).where(eq(exercises.tenantId, jacob.tenantId)),
+        ),
+      ).rejects.toMatchObject({ cause: { code: "42501" } });
+    });
+
+    it("an exercise can't use another business's uploaded video", async () => {
+      const riley = await ctxFor("riley@example.com", "riverside-pt");
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      const [video] = await db
+        .insert(videoAssets)
+        .values({ tenantId: riley.tenantId, providerRef: `test-${crypto.randomUUID()}` })
+        .returning({ id: videoAssets.id });
+      try {
+        await expect(
+          tryThenRollback(jacob, (tx) =>
+            tx.insert(exercises).values({
+              tenantId: jacob.tenantId,
+              name: "Borrowed video",
+              videoAssetId: video.id,
+            }),
+          ),
+        ).rejects.toThrow();
+        const seen = await withTenant(jacob, (tx) =>
+          tx.select().from(videoAssets).where(eq(videoAssets.id, video.id)),
+        );
+        expect(seen).toHaveLength(0);
+      } finally {
+        await db.delete(videoAssets).where(eq(videoAssets.id, video.id));
+      }
     });
   });
 });
