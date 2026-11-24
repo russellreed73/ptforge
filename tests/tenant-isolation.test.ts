@@ -15,6 +15,7 @@ import {
   exercises,
   member,
   organization,
+  programs,
   user,
   videoAssets,
 } from "@/server/db/schema";
@@ -398,6 +399,117 @@ describe.skipIf(!hasDb)("tenant isolation (Row-Level Security)", () => {
       } finally {
         await db.delete(videoAssets).where(eq(videoAssets.id, video.id));
       }
+    });
+  });
+
+  describe("programs (program builder)", () => {
+    const programNames = (tx: TenantTx) =>
+      tx
+        .select({ name: programs.name })
+        .from(programs)
+        .then((rows) => rows.map((r) => r.name).sort());
+
+    it("coaches see templates and the blocks of clients they can see", async () => {
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      const sam = await ctxFor("sam@example.com", "jacob-strength");
+      expect(await withTenant(jacob, programNames)).toEqual([
+        "4-day powerlifting split",
+        "Block 1",
+        "Y1M2",
+      ]);
+      // Sam coaches Alex only: the template and Alex's block, not Jordan's draft.
+      expect(await withTenant(sam, programNames)).toEqual(["4-day powerlifting split", "Y1M2"]);
+    });
+
+    it("athletes see only their own assigned block, never templates or drafts", async () => {
+      const alex = await ctxFor("alex@example.com", "jacob-strength");
+      expect(await withTenant(alex, programNames)).toEqual(["Y1M2"]);
+      const draftOnly = await tryThenRollback(alex, async (tx) => {
+        await tx.execute(sql`reset role`); // owner: switch Alex's block to draft for this check
+        await tx.update(programs).set({ status: "draft" }).where(eq(programs.name, "Y1M2"));
+        await tx.execute(sql`set local role ptforge_app`);
+        return programNames(tx);
+      });
+      expect(draftOnly).toEqual([]);
+    });
+
+    it("another business sees none of them", async () => {
+      const riley = await ctxFor("riley@example.com", "riverside-pt");
+      expect(await withTenant(riley, programNames)).toEqual([]);
+    });
+
+    it("athletes can't create or change programs", async () => {
+      const alex = await ctxFor("alex@example.com", "jacob-strength");
+      await expect(
+        tryThenRollback(alex, (tx) =>
+          tx
+            .insert(programs)
+            .values({ tenantId: alex.tenantId, name: "Mine", createdBy: alex.userId }),
+        ),
+      ).rejects.toThrow();
+      const changed = await tryThenRollback(alex, (tx) =>
+        tx.update(programs).set({ name: "x" }).returning({ id: programs.id }),
+      );
+      expect(changed).toHaveLength(0);
+    });
+
+    it("a trainer can't write a block for a client who isn't theirs", async () => {
+      const sam = await ctxFor("sam@example.com", "jacob-strength");
+      const jordan = await db.query.athleteProfiles.findFirst({
+        where: eq(athleteProfiles.email, "jordan@example.com"),
+      });
+      await expect(
+        tryThenRollback(sam, (tx) =>
+          tx.insert(programs).values({
+            tenantId: sam.tenantId,
+            athleteProfileId: jordan!.id,
+            name: "Sneaky",
+            createdBy: sam.userId,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("a block can't be attached to another business's client", async () => {
+      const riley = await ctxFor("riley@example.com", "riverside-pt");
+      const alexProfile = await db.query.athleteProfiles.findFirst({
+        where: eq(athleteProfiles.email, "alex@example.com"),
+      });
+      await expect(
+        tryThenRollback(riley, (tx) =>
+          tx.insert(programs).values({
+            tenantId: riley.tenantId,
+            athleteProfileId: alexProfile!.id,
+            name: "Poach",
+            createdBy: riley.userId,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("programs can't be deleted (archive instead)", async () => {
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      await expect(tryThenRollback(jacob, (tx) => tx.delete(programs))).rejects.toMatchObject({
+        cause: { code: "42501" },
+      });
+    });
+
+    it("a client has at most one current block", async () => {
+      const jacob = await ctxFor("jacob@example.com", "jacob-strength");
+      const alexProfile = await db.query.athleteProfiles.findFirst({
+        where: eq(athleteProfiles.email, "alex@example.com"),
+      });
+      await expect(
+        tryThenRollback(jacob, (tx) =>
+          tx.insert(programs).values({
+            tenantId: jacob.tenantId,
+            athleteProfileId: alexProfile!.id,
+            name: "Second current",
+            status: "active",
+            createdBy: jacob.userId,
+          }),
+        ),
+      ).rejects.toMatchObject({ cause: { code: "23505" } });
     });
   });
 });

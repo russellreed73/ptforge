@@ -4,8 +4,9 @@ import { ButtonLink, Card, PageHeader, Pill, SectionTitle } from "@/components/u
 import { STATUS_LABELS, statusTone, type ClientStatus } from "@/lib/clients";
 import { requireTenant } from "@/server/auth/session";
 import { clientPermissions, countClients, listClients } from "@/server/clients/queries";
-import { athleteProfiles } from "@/server/db/schema";
-import { withTenant } from "@/server/db/tenant";
+import { getMyCurrentProgram } from "@/server/programs/queries";
+import { currentWeek, programViewInfo } from "@/server/programs/view";
+import { ProgramView } from "@/components/programs/program-view";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -17,28 +18,31 @@ export default async function TenantDashboard({ params }: PageProps<"/[tenant]">
   const base = `/${ctx.tenantSlug}`;
 
   if (!perms.create) {
-    // Athletes: their own profile (Row-Level Security returns only theirs).
-    const [me] = await withTenant(ctx, (tx) =>
-      tx
-        .select({
-          firstName: athleteProfiles.firstName,
-          serviceType: athleteProfiles.serviceType,
-        })
-        .from(athleteProfiles)
-        .limit(1),
-    );
+    // Athletes: their current block (Row-Level Security returns only their own,
+    // and only once their coach has assigned it).
+    const { me, program } = await getMyCurrentProgram(ctx);
+    const info = program ? await programViewInfo(ctx, program.content) : {};
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <PageHeader
-          eyebrow={ctx.tenantName}
-          title={me ? `Hi, ${me.firstName}` : "Welcome"}
-          description={me?.serviceType || undefined}
-        />
-        <Card>
-          <p className="text-subtle">
-            Your programs, workout logging and messages with your coach will appear here.
-          </p>
-        </Card>
+      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+        <PageHeader eyebrow={ctx.tenantName} title={me ? `Hi, ${me.firstName}` : "Welcome"} />
+        {program ? (
+          <ProgramView
+            slug={ctx.tenantSlug}
+            name={program.name}
+            goals={program.goals}
+            weeks={program.weeks}
+            initialWeek={currentWeek(program.startDate, program.weeks)}
+            content={program.content}
+            info={info}
+          />
+        ) : (
+          <Card>
+            <p className="text-subtle">
+              Your coach hasn&apos;t assigned your training block yet. It will appear here as soon
+              as they do.
+            </p>
+          </Card>
+        )}
       </main>
     );
   }

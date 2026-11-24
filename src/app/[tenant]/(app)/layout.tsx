@@ -60,6 +60,7 @@ export default async function TenantLayout({ children, params }: LayoutProps<"/[
   const links = [
     { href: base, label: "Dashboard" },
     ...(staff ? [{ href: `${base}/clients`, label: "Clients" }] : []),
+    ...(staff ? [{ href: `${base}/programs`, label: "Programs" }] : []),
     ...(staff ? [{ href: `${base}/exercises`, label: "Exercises" }] : []),
     ...(can(ctx.roles, { invitation: ["create"] })
       ? [{ href: `${base}/team`, label: "Team" }]

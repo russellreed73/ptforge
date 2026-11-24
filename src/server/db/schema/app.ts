@@ -227,6 +227,43 @@ export const exercises = pgTable(
   ],
 );
 
+/**
+ * A training block (Jacob's "program", e.g. "Y1M2", usually 4 weeks).
+ * athlete_profile_id set = that client's block; null = a reusable template.
+ * The days, warm-ups, exercises and sets live in `content` (see
+ * src/lib/programs.ts); assigning a template copies it, so later edits to the
+ * template never change a client's block.
+ */
+export const programs = pgTable(
+  "programs",
+  {
+    id: id(),
+    tenantId: tenantId(),
+    athleteProfileId: uuid("athlete_profile_id").references(() => athleteProfiles.id, {
+      onDelete: "cascade",
+    }),
+    name: text("name").notNull(),
+    goals: text("goals"),
+    weeks: smallint("weeks").notNull().default(4),
+    /** draft | active | completed | archived (templates: draft | archived) */
+    status: text("status").notNull().default("draft"),
+    startDate: date("start_date"),
+    content: jsonb("content")
+      .notNull()
+      .default(sql`'{"days":[]}'::jsonb`),
+    sourceProgramId: uuid("source_program_id").references((): AnyPgColumn => programs.id, {
+      onDelete: "set null",
+    }),
+    createdBy: uuid("created_by").references(() => user.id, { onDelete: "set null" }),
+    updatedBy: uuid("updated_by").references(() => user.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("programs_tenant_idx").on(t.tenantId),
+    index("programs_athlete_idx").on(t.athleteProfileId, t.status),
+  ],
+);
+
 /** Who did what, for sensitive actions and platform-owner support sessions. */
 export const auditLogs = pgTable(
   "audit_logs",

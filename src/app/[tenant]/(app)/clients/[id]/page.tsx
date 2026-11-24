@@ -15,6 +15,9 @@ import { isUnit } from "@/lib/units";
 import { getSession, requireTenant } from "@/server/auth/session";
 import { getBusinessBranding } from "@/server/brand/queries";
 import { clientPermissions, getClient, listCoaches } from "@/server/clients/queries";
+import { PROGRAM_STATUS_LABELS, programSummary, type ProgramStatus } from "@/lib/programs";
+import { listClientPrograms, listTemplates, programPermissions } from "@/server/programs/queries";
+import { NewBlockForm, ProgramStatusButtons } from "../../programs/program-buttons";
 import { ApplicationEditor, ClientActions, IntakeEditor, TrainerManager } from "./client-detail";
 
 export const metadata: Metadata = { title: "Client" };
@@ -58,11 +61,15 @@ export default async function ClientPage({
   if (!perms.create) notFound();
   const client = await getClient(ctx, id);
   if (!client) notFound();
-  const tab = (await searchParams).tab === "intake" ? "intake" : "application";
-  const [brand, coaches, session] = await Promise.all([
+  const tabParam = (await searchParams).tab;
+  const tab = tabParam === "intake" || tabParam === "program" ? tabParam : "application";
+  const programPerms = programPermissions(ctx);
+  const [brand, coaches, session, blocks, templates] = await Promise.all([
     getBusinessBranding(ctx.tenantId),
     listCoaches(ctx.tenantId),
     getSession(),
+    tab === "program" ? listClientPrograms(ctx, id) : Promise.resolve([]),
+    tab === "program" ? listTemplates(ctx) : Promise.resolve([]),
   ]);
   const generalUnit = isUnit(session?.user.preferredUnit) ? session.user.preferredUnit : "kg";
 
@@ -157,9 +164,72 @@ export default async function ClientPage({
           <nav className="border-border mb-6 flex gap-6 border-b" aria-label="Client sections">
             {tabLink("application", "Application")}
             {tabLink("intake", "Detailed intake")}
+            {programPerms.edit && tabLink("program", "Program")}
           </nav>
 
-          {tab === "application" ? (
+          {tab === "program" ? (
+            <div className="flex flex-col gap-6">
+              <Card>
+                <p className="font-heading mb-4 text-sm font-semibold tracking-[0.15em] uppercase">
+                  New block
+                </p>
+                <NewBlockForm
+                  slug={ctx.tenantSlug}
+                  clientId={p.id}
+                  templates={templates.map((t) => ({ id: t.id, name: t.name }))}
+                  previous={blocks.map((b) => ({ id: b.id, name: b.name }))}
+                />
+              </Card>
+              {blocks.length === 0 ? (
+                <p className="text-subtle">
+                  No blocks yet. Start one above; when it&apos;s ready, assign it and {p.firstName}{" "}
+                  sees it in the app.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {blocks.map((b) => (
+                    <li
+                      key={b.id}
+                      className="border-border bg-surface flex flex-wrap items-center justify-between gap-3 border p-4"
+                    >
+                      <div>
+                        <Link
+                          href={`/${ctx.tenantSlug}/programs/${b.id}`}
+                          className="font-heading hover:text-primary text-base font-semibold tracking-[0.06em] uppercase"
+                        >
+                          {b.name}
+                        </Link>
+                        <span className="ml-3">
+                          <Pill tone={b.status === "active" ? "accent" : "muted"}>
+                            {PROGRAM_STATUS_LABELS[b.status as ProgramStatus] ?? b.status}
+                          </Pill>
+                        </span>
+                        <p className="text-subtle mt-1 text-sm">
+                          {programSummary(b.content, b.weeks)}
+                          {b.startDate ? ` · starts ${b.startDate}` : ""}
+                        </p>
+                      </div>
+                      <span className="flex items-center gap-3">
+                        <Link
+                          href={`/${ctx.tenantSlug}/programs/${b.id}/preview`}
+                          className="font-heading text-subtle hover:text-primary text-xs font-semibold tracking-[0.15em] uppercase"
+                        >
+                          Preview
+                        </Link>
+                        <Link
+                          href={`/${ctx.tenantSlug}/programs/${b.id}`}
+                          className="font-heading text-subtle hover:text-primary text-xs font-semibold tracking-[0.15em] uppercase"
+                        >
+                          {b.status === "completed" ? "View" : "Edit"}
+                        </Link>
+                        <ProgramStatusButtons slug={ctx.tenantSlug} id={b.id} status={b.status} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : tab === "application" ? (
             <Card>
               <ApplicationEditor
                 slug={ctx.tenantSlug}
