@@ -342,6 +342,29 @@ the SBD unit setting.
 
   Until then the upload option explains that it isn't set up, and links work as usual.
 
-## 10. Left for phase 1
+## 10. Programs (training blocks)
 
-- Importing Jacob's clients, exercises and 320 videos (step 7).
+Built like Jacob's Builder tab. A **block** (for example "Y1M2") has a number of weeks (1 to 12,
+usually 4) and a list of **days**. Each day has **warm-up** items (exercise and dose, such as
+"10e") and **exercises** picked from the library, so their videos come with them. Each exercise
+has **sets**: reps plus an **RPE target for every week**, or a **backdown** set that is a
+percentage lighter than the set before.
+
+- **Build a block for a client:** client profile → **Program** tab → **New block**. Start blank,
+  from a template, or from a copy of one of their earlier blocks.
+- **Assign it:** **Save & assign to client** in the builder makes it their **current** block; their
+  previous current block is marked finished. Drafts are only visible to coaches.
+- **Templates:** **Programs** in the top menu. Build one there, or use **Save as template** on any
+  client's block. Starting a client's block from a template copies it, so later changes to the
+  template don't change blocks already assigned.
+- **Athletes** see their current block on their dashboard (phone-friendly): pick a day and a week,
+  and they see the warm-up, each exercise's sets, reps and RPE target, and a ▶ Video button.
+  **Preview** in the builder shows coaches the same view.
+- Blocks are stored as one JSON document per block (`programs.content`, described in
+  `src/lib/programs.ts`). Every day, exercise and set has a stable id that workout logs will use.
+- Coming next: athletes logging weight and actual RPE for each set, backdown weights worked out
+  from what they lifted, and the estimated-load option.
+
+## 11. Left for phase 1
+
+- Importing Jacob's clients, exercises and 320 videos.

@@ -13,6 +13,7 @@
  * Safe to run more than once: existing users and businesses are skipped.
  */
 import { eq } from "drizzle-orm";
+import type { ProgramSet } from "../src/lib/programs";
 import { auth } from "../src/server/auth";
 import type { RoleName } from "../src/server/auth/permissions";
 import { db } from "../src/server/db";
@@ -23,6 +24,7 @@ import {
   exercises,
   member,
   organization,
+  programs,
   user,
 } from "../src/server/db/schema";
 
@@ -245,6 +247,161 @@ async function main() {
         createdBy: jacob,
       },
     ]);
+  }
+
+  // A 4-day powerlifting block like Jacob's prototype: as a template, and
+  // assigned to Alex as their current block.
+  if ((await db.$count(programs, eq(programs.tenantId, jacobStrength))) === 0) {
+    const lib = await db.select({ id: exercises.id, name: exercises.name }).from(exercises);
+    const ex = (name: string) => lib.find((e) => e.name === name)?.id ?? null;
+    let n = 0;
+    const nid = () => `seed${(++n).toString().padStart(4, "0")}`;
+    const rpe = (...w: string[]) => w;
+    const set = (reps: string, targets: string[]) => ({
+      id: nid(),
+      reps,
+      rpe: targets,
+      backdownPct: null,
+    });
+    const backdown = (reps: string, pct: number): ProgramSet => ({
+      id: nid(),
+      reps,
+      rpe: ["", "", "", ""],
+      backdownPct: pct,
+    });
+    const item = (
+      name: string,
+      sets: ProgramSet[],
+      extra: { notes?: string; est?: boolean } = {},
+    ) => ({
+      id: nid(),
+      exerciseId: ex(name),
+      name,
+      notes: extra.notes ?? "",
+      showEstimatedLoad: extra.est ?? false,
+      sets,
+    });
+    const warm = (name: string, dose: string) => ({ id: nid(), exerciseId: ex(name), name, dose });
+    const content = {
+      days: [
+        {
+          id: nid(),
+          title: "Day 1 — Squat 1, Deadlift 2",
+          notes: "",
+          warmups: [warm("Dowel Complex", "10e"), warm("Hip CARs", "6e")],
+          exercises: [
+            item("Competition Squat", [set("5", rpe("6.5", "7", "7.5", "8")), backdown("5", 8)], {
+              est: true,
+            }),
+            item("Romanian Deadlift", [
+              set("8", rpe("7", "7", "8", "8")),
+              set("8", rpe("7", "8", "8", "9")),
+              set("8", rpe("8", "8", "9", "9")),
+            ]),
+            item(
+              "Banded Step-ups",
+              [set("10e", rpe("7", "7", "8", "8")), set("10e", rpe("7", "7", "8", "8"))],
+              { notes: "Knee friendly; pick a box height that stays pain-free." },
+            ),
+          ],
+        },
+        {
+          id: nid(),
+          title: "Day 2 — Bench 1",
+          notes: "",
+          warmups: [warm("Dowel Complex", "10e"), warm("90-90 Hip Switch", "8e")],
+          exercises: [
+            item(
+              "Competition Bench Press",
+              [set("5", rpe("6.5", "7", "7.5", "8")), backdown("5", 8)],
+              { est: true },
+            ),
+            item("Lat Pulldown", [
+              set("10", rpe("7", "7", "8", "8")),
+              set("10", rpe("8", "8", "8", "8")),
+            ]),
+            item("Chest-Supported Row", [
+              set("10", rpe("7", "7", "8", "8")),
+              set("10", rpe("8", "8", "8", "8")),
+            ]),
+          ],
+        },
+        {
+          id: nid(),
+          title: "Day 3 — Deadlift 1, Squat 2",
+          notes: "",
+          warmups: [warm("Hip CARs", "6e"), warm("Ankle Dorsiflexion Mobilization", "10e")],
+          exercises: [
+            item("Competition Deadlift", [
+              set("3", rpe("6.5", "7", "7.5", "8")),
+              backdown("3", 10),
+            ]),
+            item("Competition Squat", [
+              set("6", rpe("6", "6.5", "7", "7.5")),
+              set("6", rpe("7", "7", "7.5", "8")),
+            ]),
+            item("SL Hamstring Curls", [
+              set("10e", rpe("7", "7", "7", "7")),
+              set("10e", rpe("8", "8", "8", "8")),
+            ]),
+          ],
+        },
+        {
+          id: nid(),
+          title: "Day 4 — Bench 2, Arms",
+          notes: "",
+          warmups: [warm("Dowel Complex", "10e")],
+          exercises: [
+            item("Competition Bench Press", [
+              set("8", rpe("6", "6.5", "7", "7.5")),
+              set("8", rpe("7", "7.5", "8", "8")),
+            ]),
+            item("Dumbbell Biceps Curl", [
+              set("12", rpe("8", "8", "9", "9")),
+              set("12", rpe("9", "9", "9", "9")),
+            ]),
+            item("Hammer Curl", [
+              set("12", rpe("8", "8", "9", "9")),
+              set("12", rpe("9", "9", "9", "9")),
+            ]),
+          ],
+        },
+      ],
+    };
+    const [template] = await db
+      .insert(programs)
+      .values({
+        tenantId: jacobStrength,
+        name: "4-day powerlifting split",
+        goals: "Build SBD strength and work capacity.",
+        weeks: 4,
+        status: "draft",
+        content,
+        createdBy: jacob,
+      })
+      .returning({ id: programs.id });
+    await db.insert(programs).values({
+      tenantId: jacobStrength,
+      athleteProfileId: alexProfile,
+      name: "Y1M2",
+      goals: "Keep building work capacity · work around the knee · continue to build SBD strength",
+      weeks: 4,
+      status: "active",
+      startDate: new Date().toISOString().slice(0, 10),
+      content,
+      sourceProgramId: template.id,
+      createdBy: sam,
+    });
+    // A draft for Jordan, only coaches see it.
+    await db.insert(programs).values({
+      tenantId: jacobStrength,
+      athleteProfileId: jordan,
+      name: "Block 1",
+      weeks: 4,
+      status: "draft",
+      content: { days: [] },
+      createdBy: maya,
+    });
   }
 
   const riverside = await ensureTenant("Riverside PT", "riverside-pt", riley);

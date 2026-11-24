@@ -57,6 +57,20 @@
       "when": 1794147407919,
       "tag": "0007_exercise_rls_and_starters",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794658915033,
+      "tag": "0008_programs",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794658915923,
+      "tag": "0009_programs_rls",
+      "breakpoints": true
     }
   ]
 }
